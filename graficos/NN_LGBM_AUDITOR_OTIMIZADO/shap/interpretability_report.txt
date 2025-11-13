@@ -1,0 +1,112 @@
+======================================================================
+RELATÓRIO DE INTERPRETABILIDADE - SHAP VALUES
+======================================================================
+
+Data: 2025-11-13 12:51:31.990238
+Amostra analisada: 1000 contratos
+
+--- TOP 20 FEATURES MAIS IMPORTANTES ---
+    feature  importance
+   embed_26    0.085392
+    embed_6    0.058821
+    embed_1    0.026953
+   embed_29    0.020858
+   embed_15    0.018451
+    embed_0    0.013559
+    embed_4    0.011023
+   embed_10    0.010218
+    embed_8    0.005630
+Cidade_Loja    0.004766
+   embed_22    0.004736
+   embed_23    0.004640
+    embed_5    0.002774
+   embed_25    0.001995
+    embed_9    0.001687
+    embed_7    0.001197
+   embed_30    0.000996
+  municipio    0.000945
+   embed_20    0.000797
+   embed_28    0.000743
+
+--- ANÁLISE DE ERROS ---
+Falsos Positivos: 157 (15.70%)
+Falsos Negativos: 31 (3.10%)
+True Positives: 768 (76.80%)
+
+--- DIFERENÇA DE IMPORTÂNCIA: FP vs TP ---
+    feature  FP_mean_shap  TP_mean_shap      diff
+    embed_6      0.066194      0.055421  0.010773
+   embed_26      0.071886      0.065547  0.006339
+   embed_29      0.018959      0.014926  0.004033
+    embed_1      0.025496      0.022511  0.002985
+   embed_15      0.017931      0.015491  0.002440
+Cidade_Loja      0.005318      0.004175  0.001143
+    embed_8      0.006676      0.005549  0.001127
+    embed_4      0.011782      0.010895  0.000887
+    embed_0      0.013137      0.012294  0.000844
+   embed_22      0.004237      0.003626  0.000611
+    embed_9      0.002027      0.001425  0.000603
+   embed_10      0.008646      0.008194  0.000452
+   embed_25      0.001467      0.001748 -0.000281
+    embed_5      0.002618      0.002348  0.000270
+  municipio      0.001056      0.000806  0.000251
+
+======================================================================
+ANÁLISE DOS EMBEDDINGS
+======================================================================
+
+Os embeddings são representações de 32 dimensões aprendidas pela
+Rede Neural. Eles capturam padrões complexos das 99 features originais.
+
+
+--- EMBED_26 (Importância SHAP: 0.085392) ---
+Top 10 Correlações com Features Originais:
+  descricao_da_Profissao_te                +0.6551
+  Mercadoria_te                            +0.5575
+  plano_financiamento                      +0.3299
+  Cidade_Loja_te                           +0.3298
+  municipio_te                             +0.3295
+  Score_MC                                 +0.2090
+  valor_financiado                         +0.1976
+  Grupo_MC_GRUPO 4                         +0.1566
+  Tipo_Cliente_NOVO                        +0.1475
+  categorias_da_Profissao_invalido         +0.1463
+
+--- EMBED_6 (Importância SHAP: 0.058821) ---
+Top 10 Correlações com Features Originais:
+  descricao_da_Profissao_te                +0.4486
+  Mercadoria_te                            +0.4322
+  plano_financiamento                      +0.3753
+  Cidade_Loja_te                           +0.3063
+  municipio_te                             +0.3062
+  valor_financiado                         +0.2645
+  categorias_te                            +0.2293
+  categorias_da_Profissao_invalido         +0.2282
+  Grupo_MC_nan                             +0.2171
+  Grupo_MC_GRUPO 4                         +0.2171
+
+--- EMBED_1 (Importância SHAP: 0.026953) ---
+Top 10 Correlações com Features Originais:
+  descricao_da_Profissao_te                +0.6265
+  Mercadoria_te                            +0.5774
+  plano_financiamento                      +0.3068
+  Cidade_Loja_te                           +0.2881
+  municipio_te                             +0.2879
+  Score_MC                                 +0.2274
+  valor_financiado                         +0.1802
+  Grupo_MC_GRUPO 4                         +0.1491
+  Tipo_Cliente_NOVO                        +0.1396
+  categorias_da_Profissao_invalido         +0.1220
+
+======================================================================
+INTERPRETAÇÃO t-SNE
+======================================================================
+
+t-SNE projeta os 32 embeddings em 2D para visualização.
+Amostra analisada: 500 contratos
+
+Observações:
+- Clusters verdes = regiões de contratos lucrativos
+- Clusters vermelhos = regiões de contratos com prejuízo
+- Separação clara indica que a NN aprendeu bem os padrões
+- Sobreposição indica casos ambíguos (difíceis de classificar)

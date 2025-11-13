@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import lightgbm as lgb
 import optuna
+import shap
 import warnings
 
 # --- Configuração de Ambiente ---
@@ -38,6 +39,26 @@ if len(physical_devices) > 0:
     print("Usando aceleração GPU")
 else:
     print("Usando CPU")
+
+# ----------------------
+# CONFIGURÁVEIS (experimente esses valores)
+# ----------------------
+CONFIG = {
+    # Rede Neural
+    'nn_layers': [512, 256, 128, 64],
+    'nn_dropout': [0.30, 0.30, 0.20, 0.20],
+    'embedding_dim': 32,
+    'use_batchnorm': True,
+    'nn_lr': 1e-3,
+    'nn_epochs': 100,
+    'nn_batch_size': 256,
+    'early_stop_patience_nn': 15,
+
+    # Optuna / LGBM
+    'optuna_trials': 100,
+    # Observação: aumentar optuna_trials melhora busca, mas demora mais
+}
+
 
 # ---------- 1. CARREGA E PREPARA ----------
 def load_and_preprocess_v3(filepath):
@@ -196,19 +217,23 @@ print("="*70)
 
 def criar_modelo(input_dim):
     inputs = layers.Input(shape=(input_dim,))
-    x = layers.Dense(512, activation='relu')(inputs)
-    x = layers.BatchNormalization()(x); x = layers.Dropout(0.3)(x)
-    x = layers.Dense(256, activation='relu')(x)
-    x = layers.BatchNormalization()(x); x = layers.Dropout(0.3)(x)
-    x = layers.Dense(128, activation='relu')(x)
-    x = layers.BatchNormalization()(x); x = layers.Dropout(0.2)(x)
-    x = layers.Dense(64, activation='relu')(x)
-    x = layers.BatchNormalization()(x); x = layers.Dropout(0.2)(x)
-    embeddings = layers.Dense(32, activation='relu', name='embeddings')(x) 
+    x = inputs
+    # Construir camadas a partir do CONFIG
+    for i, units in enumerate(CONFIG.get('nn_layers', [512, 256, 128, 64])):
+        x = layers.Dense(units, activation='relu')(x)
+        if CONFIG.get('use_batchnorm', True):
+            x = layers.BatchNormalization()(x)
+        # escolher dropout correspondente (se fornecido)
+        dr = CONFIG.get('nn_dropout', [0.3] * len(CONFIG.get('nn_layers', [])))
+        dropout_rate = dr[min(i, len(dr)-1)] if len(dr) > 0 else 0.0
+        if dropout_rate and dropout_rate > 0:
+            x = layers.Dropout(dropout_rate)(x)
+
+    embeddings = layers.Dense(CONFIG.get('embedding_dim', 32), activation='relu', name='embeddings')(x)
     outputs = layers.Dense(1, activation='sigmoid')(embeddings)
     model = Model(inputs=inputs, outputs=outputs)
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=0.001),
+        optimizer=keras.optimizers.Adam(learning_rate=CONFIG.get('nn_lr', 1e-3)),
         loss=keras.losses.BinaryCrossentropy(),
         metrics=[keras.metrics.AUC(name='auc')]
     )
@@ -263,7 +288,7 @@ class LucroEarlyStopping(keras.callbacks.Callback):
                 self.model.set_weights(self.best_weights)
 
 early_stop_lucro = LucroEarlyStopping(
-    X_val=X_test_scaled, y_val_lucro=y_test_lucro, patience=15, verbose=1
+    X_val=X_test_scaled, y_val_lucro=y_test_lucro, patience=CONFIG.get('early_stop_patience_nn', 15), verbose=1
 )
 reduce_lr = callbacks.ReduceLROnPlateau(
     monitor='val_auc', mode='max', factor=0.5, patience=15, min_lr=1e-6, verbose=1
@@ -274,9 +299,9 @@ print("\n" + "="*70)
 print("ETAPA 1: INICIANDO TREINAMENTO (REDE NEURAL)")
 print("="*70)
 history = model.fit(
-    X_train_scaled, y_train_target, 
+    X_train_scaled, y_train_target,
     validation_data=(X_test_scaled, y_test_target),
-    epochs=100, batch_size=256,
+    epochs=CONFIG.get('nn_epochs', 100), batch_size=CONFIG.get('nn_batch_size', 256),
     callbacks=[early_stop_lucro, reduce_lr],
     class_weight=class_weight,
     verbose=1
@@ -323,8 +348,14 @@ embedding_cols = [f'embed_{i}' for i in range(nn_embeddings_train.shape[1])]
 df_embeddings_train = pd.DataFrame(nn_embeddings_train, columns=embedding_cols, index=X_train_lgbm.index)
 df_embeddings_test = pd.DataFrame(nn_embeddings_test, columns=embedding_cols, index=X_test_lgbm.index)
 
-X_train_stacked = pd.concat([X_train_lgbm, df_embeddings_train, pd.Series(y_pred_prob_train_nn, name='nn_prob', index=X_train_lgbm.index)], axis=1)
-X_test_stacked = pd.concat([X_test_lgbm, df_embeddings_test, pd.Series(y_pred_prob_test_nn, name='nn_prob', index=X_test_lgbm.index)], axis=1)
+# ⚠️ TESTE: Removendo nn_prob para forçar LGBM a aprender com features originais
+print("⚠️  TESTE: nn_prob REMOVIDA - LGBM usará apenas embeddings + features originais")
+X_train_stacked = pd.concat([X_train_lgbm, df_embeddings_train], axis=1)
+X_test_stacked = pd.concat([X_test_lgbm, df_embeddings_test], axis=1)
+
+# Versão ANTERIOR (com nn_prob):
+# X_train_stacked = pd.concat([X_train_lgbm, df_embeddings_train, pd.Series(y_pred_prob_train_nn, name='nn_prob', index=X_train_lgbm.index)], axis=1)
+# X_test_stacked = pd.concat([X_test_lgbm, df_embeddings_test, pd.Series(y_pred_prob_test_nn, name='nn_prob', index=X_test_lgbm.index)], axis=1)
 
 X_train_stacked.columns = [str(col) for col in X_train_stacked.columns]
 X_test_stacked.columns = [str(col) for col in X_test_stacked.columns]
@@ -386,7 +417,7 @@ def objective(trial):
     
     return lucro_total
 
-N_TRIALS = 100 
+N_TRIALS = CONFIG.get('optuna_trials', 100)
 print(f"Iniciando estudo do Optuna com {N_TRIALS} tentativas para maximizar o LUCRO...")
 
 study = optuna.create_study(direction='maximize')
@@ -545,7 +576,407 @@ print("\nModelo NN (Etapa 1) salvo: ../modelos/nn_filtro_etapa1.h5")
 lgbm_final.save_model('../modelos/lgbm_auditor_etapa2_otimizado.txt')
 print("Modelo LGBM (Etapa 2 Otimizado) salvo: ../modelos/lgbm_auditor_etapa2_otimizado.txt")
 
-# ---------- 16. GRÁFICOS ----------
+# ---------- 15B. ANÁLISE DE INTERPRETABILIDADE (SHAP) ----------
+print("\n" + "="*70)
+print("ANÁLISE DE INTERPRETABILIDADE (SHAP VALUES)")
+print("="*70)
+
+print("Calculando SHAP values para o conjunto de teste...")
+# Criar TreeExplainer para LightGBM
+explainer = shap.TreeExplainer(lgbm_final)
+
+# Calcular SHAP values (amostra de 1000 contratos para velocidade)
+sample_size = min(1000, len(X_test_stacked))
+X_test_sample = X_test_stacked.sample(n=sample_size, random_state=42)
+shap_values = explainer.shap_values(X_test_sample)
+
+# Para classificação binária, pegar apenas SHAP values da classe 1 (Lucrativo)
+if isinstance(shap_values, list):
+    shap_values_class1 = shap_values[1]
+else:
+    shap_values_class1 = shap_values
+
+print(f"SHAP values calculados para {sample_size} contratos")
+
+# Feature Importance Global (Mean Absolute SHAP)
+shap_importance = pd.DataFrame({
+    'feature': X_test_sample.columns,
+    'importance': np.abs(shap_values_class1).mean(axis=0)
+}).sort_values('importance', ascending=False)
+
+print("\n--- TOP 20 FEATURES MAIS IMPORTANTES (SHAP) ---")
+print(shap_importance.head(20).to_string(index=False))
+
+# Análise de Casos Específicos: Falsos Positivos e Falsos Negativos
+print("\n--- ANÁLISE DE ERROS DO MODELO ---")
+
+# Identificar FP e FN no sample
+# Converter índices do DataFrame para posições no array
+sample_positions = [list(X_test_stacked.index).index(idx) for idx in X_test_sample.index]
+y_test_sample_target = y_test_target[sample_positions]
+y_test_sample_lucro = y_test_lucro[sample_positions]
+y_pred_sample = lgbm_final.predict(X_test_sample, num_iteration=lgbm_final.best_iteration)
+aceitar_sample = y_pred_sample >= threshold_opt_lgbm
+
+# Falsos Positivos: Modelo aceitou (pred=1), mas era prejuízo (real=0)
+fp_mask = (aceitar_sample == True) & (y_test_sample_target == 0)
+fn_mask = (aceitar_sample == False) & (y_test_sample_target == 1)
+
+print(f"\nFalsos Positivos (Prejuízo aceito): {fp_mask.sum()} contratos")
+print(f"Falsos Negativos (Lucro rejeitado): {fn_mask.sum()} contratos")
+
+# Salvar gráficos SHAP
+os.makedirs('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap', exist_ok=True)
+
+print("\n--- Gerando Gráficos SHAP ---")
+
+# 1. Summary Plot (Importância Global + Distribuição)
+plt.figure(figsize=(12, 8))
+shap.summary_plot(shap_values_class1, X_test_sample, plot_type="dot", show=False, max_display=20)
+plt.title('SHAP Summary Plot - Importância e Impacto das Features', fontsize=14, fontweight='bold', pad=20)
+plt.tight_layout()
+plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/summary_plot.png', dpi=300, bbox_inches='tight')
+plt.close()
+print("✓ Summary Plot salvo")
+
+# 2. Bar Plot (Importância Média)
+plt.figure(figsize=(12, 8))
+shap.summary_plot(shap_values_class1, X_test_sample, plot_type="bar", show=False, max_display=20)
+plt.title('SHAP Feature Importance - Top 20 Features', fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/feature_importance_bar.png', dpi=300, bbox_inches='tight')
+plt.close()
+print("✓ Bar Plot salvo")
+
+# 3. Waterfall Plot - Exemplo de Contrato Aceito Corretamente (TP)
+tp_mask = (aceitar_sample == True) & (y_test_sample_target == 1)  # Aceito E Lucrativo
+if tp_mask.sum() > 0:
+    tp_idx = np.where(tp_mask)[0][0]  # Primeiro True Positive
+    plt.figure(figsize=(12, 8))
+    shap.waterfall_plot(
+        shap.Explanation(
+            values=shap_values_class1[tp_idx], 
+            base_values=explainer.expected_value[1] if isinstance(explainer.expected_value, list) else explainer.expected_value,
+            data=X_test_sample.iloc[tp_idx],
+            feature_names=X_test_sample.columns.tolist()
+        ),
+        show=False,
+        max_display=15
+    )
+    plt.title(f'Waterfall Plot - Contrato Aceito CORRETAMENTE (Lucro Real: R$ {y_test_sample_lucro[tp_idx]:.2f})', 
+              fontsize=12, fontweight='bold', pad=20)
+    plt.tight_layout()
+    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_true_positive.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("✓ Waterfall Plot (True Positive) salvo")
+
+# 4. Waterfall Plot - Exemplo de Falso Positivo (Prejuízo aceito)
+if fp_mask.sum() > 0:
+    fp_idx = np.where(fp_mask)[0][0]  # Primeiro Falso Positivo
+    plt.figure(figsize=(12, 8))
+    shap.waterfall_plot(
+        shap.Explanation(
+            values=shap_values_class1[fp_idx], 
+            base_values=explainer.expected_value[1] if isinstance(explainer.expected_value, list) else explainer.expected_value,
+            data=X_test_sample.iloc[fp_idx],
+            feature_names=X_test_sample.columns.tolist()
+        ),
+        show=False,
+        max_display=15
+    )
+    plt.title(f'Waterfall Plot - FALSO POSITIVO (Prejuízo: R$ {y_test_sample_lucro[fp_idx]:.2f} - Modelo ERROU)', 
+              fontsize=12, fontweight='bold', pad=20)
+    plt.tight_layout()
+    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_false_positive.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("✓ Waterfall Plot (False Positive) salvo")
+
+# 5. Waterfall Plot - Exemplo de Falso Negativo (Lucro rejeitado)
+if fn_mask.sum() > 0:
+    fn_idx = np.where(fn_mask)[0][0]  # Primeiro Falso Negativo
+    plt.figure(figsize=(12, 8))
+    shap.waterfall_plot(
+        shap.Explanation(
+            values=shap_values_class1[fn_idx], 
+            base_values=explainer.expected_value[1] if isinstance(explainer.expected_value, list) else explainer.expected_value,
+            data=X_test_sample.iloc[fn_idx],
+            feature_names=X_test_sample.columns.tolist()
+        ),
+        show=False,
+        max_display=15
+    )
+    plt.title(f'Waterfall Plot - FALSO NEGATIVO (Lucro: R$ {y_test_sample_lucro[fn_idx]:.2f} - Modelo PERDEU)', 
+              fontsize=12, fontweight='bold', pad=20)
+    plt.tight_layout()
+    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_false_negative.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("✓ Waterfall Plot (False Negative) salvo")
+
+# 6. Dependence Plots - Top 3 Features
+top_3_features = shap_importance.head(3)['feature'].tolist()
+for i, feat in enumerate(top_3_features, 1):
+    try:
+        plt.figure(figsize=(10, 6))
+        shap.dependence_plot(
+            feat, 
+            shap_values_class1, 
+            X_test_sample, 
+            show=False,
+            interaction_index='auto'
+        )
+        plt.title(f'Dependence Plot - {feat}', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(f'../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/dependence_plot_{i}_{feat[:30]}.png', 
+                    dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"✓ Dependence Plot {i} ({feat}) salvo")
+    except Exception as e:
+        print(f"⚠️  Erro ao gerar Dependence Plot para {feat}: {e}")
+
+# 7. Análise Comparativa: FP vs TP (Média de SHAP values)
+if fp_mask.sum() > 0 and tp_mask.sum() > 0:
+    shap_fp_mean = np.abs(shap_values_class1[fp_mask]).mean(axis=0)
+    shap_tp_mean = np.abs(shap_values_class1[tp_mask]).mean(axis=0)
+    
+    comparison_df = pd.DataFrame({
+        'feature': X_test_sample.columns,
+        'FP_mean_shap': shap_fp_mean,
+        'TP_mean_shap': shap_tp_mean,
+        'diff': shap_fp_mean - shap_tp_mean
+    }).sort_values('diff', key=abs, ascending=False).head(15)
+    
+    print("\n--- DIFERENÇA DE IMPORTÂNCIA: Falsos Positivos vs True Positives ---")
+    print(comparison_df.to_string(index=False))
+    
+    # Gráfico de comparação
+    fig, ax = plt.subplots(figsize=(12, 8))
+    x = np.arange(len(comparison_df))
+    width = 0.35
+    ax.bar(x - width/2, comparison_df['FP_mean_shap'], width, label='Falsos Positivos (Erros)', color='red', alpha=0.7)
+    ax.bar(x + width/2, comparison_df['TP_mean_shap'], width, label='True Positives (Acertos)', color='green', alpha=0.7)
+    ax.set_xlabel('Features', fontsize=12)
+    ax.set_ylabel('Mean |SHAP|', fontsize=12)
+    ax.set_title('Comparação SHAP: Erros (FP) vs Acertos (TP)', fontsize=14, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(comparison_df['feature'], rotation=45, ha='right')
+    ax.legend()
+    ax.grid(alpha=0.3, axis='y')
+    plt.tight_layout()
+    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/comparison_fp_vs_tp.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    print("✓ Comparação FP vs TP salva")
+
+# 8. ANÁLISE DE EMBEDDINGS: Correlação com Features Originais
+print("\n--- Analisando Embeddings (Correlação com Features Originais) ---")
+
+# Pegar os top 5 embeddings mais importantes
+top_embeddings = [feat for feat in shap_importance.head(10)['feature'].tolist() if feat.startswith('embed_')][:5]
+
+# Criar DataFrame com embeddings de treino
+embed_cols = [f'embed_{i}' for i in range(nn_embeddings_train.shape[1])]
+df_embeddings_full = pd.DataFrame(nn_embeddings_train, columns=embed_cols, index=X_train_nn.index)
+
+# Calcular correlação de cada embedding com features originais
+embedding_correlations = {}
+for embed in top_embeddings:
+    embed_idx = int(embed.split('_')[1])
+    correlations = X_train_nn.corrwith(df_embeddings_full[embed])
+    top_corr = correlations.abs().sort_values(ascending=False).head(10)
+    embedding_correlations[embed] = top_corr
+    
+    print(f"\n{embed.upper()} - Top 10 Correlações com Features Originais:")
+    for feat, corr in top_corr.items():
+        print(f"  {feat:40s} {corr:+.4f}")
+
+# Gráfico de correlação para top 3 embeddings
+fig, axes = plt.subplots(len(top_embeddings[:3]), 1, figsize=(12, 4*len(top_embeddings[:3])))
+if len(top_embeddings[:3]) == 1:
+    axes = [axes]
+
+for idx, embed in enumerate(top_embeddings[:3]):
+    ax = axes[idx]
+    top_corr = embedding_correlations[embed].head(15)
+    colors = ['red' if x < 0 else 'green' for x in top_corr.values]
+    ax.barh(range(len(top_corr)), top_corr.values, color=colors, alpha=0.7)
+    ax.set_yticks(range(len(top_corr)))
+    ax.set_yticklabels(top_corr.index, fontsize=10)
+    ax.set_xlabel('Correlação', fontsize=11)
+    ax.set_title(f'{embed.upper()} - Correlação com Features Originais (Top 15)', fontsize=12, fontweight='bold')
+    ax.axvline(0, color='black', linewidth=0.8)
+    ax.grid(alpha=0.3, axis='x')
+
+plt.tight_layout()
+plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/embedding_correlations.png', dpi=300, bbox_inches='tight')
+plt.close()
+print("\n✓ Análise de correlação dos embeddings salva")
+
+# 9. VISUALIZAÇÃO t-SNE: Embeddings em 2D
+print("\n--- Gerando Visualização t-SNE dos Embeddings ---")
+
+from sklearn.manifold import TSNE
+
+# Usar amostra menor para t-SNE (mais rápido)
+tsne_sample_size = min(500, len(nn_embeddings_test))
+tsne_indices = np.random.choice(len(nn_embeddings_test), tsne_sample_size, replace=False)
+embeddings_for_tsne = nn_embeddings_test[tsne_indices]
+y_lucro_for_tsne = y_test_lucro[tsne_indices]
+y_target_for_tsne = y_test_target[tsne_indices]
+
+print(f"Executando t-SNE em {tsne_sample_size} contratos (pode demorar ~30s)...")
+tsne = TSNE(n_components=2, random_state=42, perplexity=30, max_iter=1000)
+embeddings_2d = tsne.fit_transform(embeddings_for_tsne)
+
+# Criar 3 visualizações diferentes
+fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+# 1. Colorido por Lucro Real (contínuo)
+ax1 = axes[0]
+scatter1 = ax1.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], 
+                       c=y_lucro_for_tsne, cmap='RdYlGn', alpha=0.6, s=50, 
+                       vmin=-2000, vmax=2000)
+ax1.set_xlabel('t-SNE Dimensão 1', fontsize=12)
+ax1.set_ylabel('t-SNE Dimensão 2', fontsize=12)
+ax1.set_title('Embeddings em 2D - Colorido por Lucro Real', fontsize=14, fontweight='bold')
+cbar1 = plt.colorbar(scatter1, ax=ax1)
+cbar1.set_label('Lucro (R$)', fontsize=11)
+ax1.grid(alpha=0.3)
+
+# 2. Colorido por Classe (Lucrativo vs Prejuízo)
+ax2 = axes[1]
+colors_class = ['red' if x == 0 else 'green' for x in y_target_for_tsne]
+ax2.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], 
+           c=colors_class, alpha=0.6, s=50)
+ax2.set_xlabel('t-SNE Dimensão 1', fontsize=12)
+ax2.set_ylabel('t-SNE Dimensão 2', fontsize=12)
+ax2.set_title('Embeddings em 2D - Lucrativo (Verde) vs Prejuízo (Vermelho)', fontsize=14, fontweight='bold')
+ax2.grid(alpha=0.3)
+
+# 3. Colorido por Magnitude do Lucro/Prejuízo
+ax3 = axes[2]
+magnitude_lucro = np.abs(y_lucro_for_tsne)
+scatter3 = ax3.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], 
+                       c=magnitude_lucro, cmap='plasma', alpha=0.6, s=50)
+ax3.set_xlabel('t-SNE Dimensão 1', fontsize=12)
+ax3.set_ylabel('t-SNE Dimensão 2', fontsize=12)
+ax3.set_title('Embeddings em 2D - Magnitude do Lucro/Prejuízo', fontsize=14, fontweight='bold')
+cbar3 = plt.colorbar(scatter3, ax=ax3)
+cbar3.set_label('|Lucro| (R$)', fontsize=11)
+ax3.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/tsne_embeddings_2d.png', dpi=300, bbox_inches='tight')
+plt.close()
+print("✓ Visualização t-SNE salva")
+
+# Análise de clusters (identificar regiões de alto/baixo lucro)
+from scipy.stats import gaussian_kde
+
+# Densidade de lucro positivo vs negativo
+lucrativos_mask_tsne = y_target_for_tsne == 1
+prejuizo_mask_tsne = y_target_for_tsne == 0
+
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+# Densidade de contratos lucrativos
+ax1 = axes[0]
+if lucrativos_mask_tsne.sum() > 10:
+    xy_lucrativos = embeddings_2d[lucrativos_mask_tsne].T
+    try:
+        kde_lucrativos = gaussian_kde(xy_lucrativos)
+        x_min, x_max = embeddings_2d[:, 0].min(), embeddings_2d[:, 0].max()
+        y_min, y_max = embeddings_2d[:, 1].min(), embeddings_2d[:, 1].max()
+        xx, yy = np.mgrid[x_min:x_max:100j, y_min:y_max:100j]
+        positions = np.vstack([xx.ravel(), yy.ravel()])
+        density_lucrativos = np.reshape(kde_lucrativos(positions).T, xx.shape)
+        ax1.contourf(xx, yy, density_lucrativos, cmap='Greens', alpha=0.6, levels=10)
+        ax1.scatter(embeddings_2d[lucrativos_mask_tsne, 0], embeddings_2d[lucrativos_mask_tsne, 1], 
+                   c='green', alpha=0.3, s=20, label='Lucrativos')
+    except:
+        ax1.scatter(embeddings_2d[lucrativos_mask_tsne, 0], embeddings_2d[lucrativos_mask_tsne, 1], 
+                   c='green', alpha=0.5, s=30)
+ax1.set_xlabel('t-SNE Dimensão 1', fontsize=12)
+ax1.set_ylabel('t-SNE Dimensão 2', fontsize=12)
+ax1.set_title('Densidade de Contratos LUCRATIVOS', fontsize=14, fontweight='bold')
+ax1.grid(alpha=0.3)
+
+# Densidade de contratos prejuízo
+ax2 = axes[1]
+if prejuizo_mask_tsne.sum() > 10:
+    xy_prejuizo = embeddings_2d[prejuizo_mask_tsne].T
+    try:
+        kde_prejuizo = gaussian_kde(xy_prejuizo)
+        density_prejuizo = np.reshape(kde_prejuizo(positions).T, xx.shape)
+        ax2.contourf(xx, yy, density_prejuizo, cmap='Reds', alpha=0.6, levels=10)
+        ax2.scatter(embeddings_2d[prejuizo_mask_tsne, 0], embeddings_2d[prejuizo_mask_tsne, 1], 
+                   c='red', alpha=0.3, s=20, label='Prejuízo')
+    except:
+        ax2.scatter(embeddings_2d[prejuizo_mask_tsne, 0], embeddings_2d[prejuizo_mask_tsne, 1], 
+                   c='red', alpha=0.5, s=30)
+ax2.set_xlabel('t-SNE Dimensão 1', fontsize=12)
+ax2.set_ylabel('t-SNE Dimensão 2', fontsize=12)
+ax2.set_title('Densidade de Contratos PREJUÍZO', fontsize=14, fontweight='bold')
+ax2.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/tsne_density_comparison.png', dpi=300, bbox_inches='tight')
+plt.close()
+print("✓ Análise de densidade t-SNE salva")
+
+# Salvar relatório de interpretabilidade
+with open('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/interpretability_report.txt', 'w', encoding='utf-8') as f:
+    f.write("="*70 + "\n")
+    f.write("RELATÓRIO DE INTERPRETABILIDADE - SHAP VALUES\n")
+    f.write("="*70 + "\n\n")
+    f.write(f"Data: {pd.Timestamp.now()}\n")
+    f.write(f"Amostra analisada: {sample_size} contratos\n\n")
+    
+    f.write("--- TOP 20 FEATURES MAIS IMPORTANTES ---\n")
+    f.write(shap_importance.head(20).to_string(index=False))
+    f.write("\n\n")
+    
+    f.write("--- ANÁLISE DE ERROS ---\n")
+    f.write(f"Falsos Positivos: {fp_mask.sum()} ({fp_mask.sum()/len(X_test_sample)*100:.2f}%)\n")
+    f.write(f"Falsos Negativos: {fn_mask.sum()} ({fn_mask.sum()/len(X_test_sample)*100:.2f}%)\n")
+    f.write(f"True Positives: {tp_mask.sum()} ({tp_mask.sum()/len(X_test_sample)*100:.2f}%)\n\n")
+    
+    if fp_mask.sum() > 0 and tp_mask.sum() > 0:
+        f.write("--- DIFERENÇA DE IMPORTÂNCIA: FP vs TP ---\n")
+        f.write(comparison_df.to_string(index=False))
+        f.write("\n\n")
+    
+    f.write("="*70 + "\n")
+    f.write("ANÁLISE DOS EMBEDDINGS\n")
+    f.write("="*70 + "\n\n")
+    f.write("Os embeddings são representações de 32 dimensões aprendidas pela\n")
+    f.write("Rede Neural. Eles capturam padrões complexos das 99 features originais.\n\n")
+    
+    for embed in top_embeddings[:3]:
+        f.write(f"\n--- {embed.upper()} (Importância SHAP: {shap_importance[shap_importance['feature']==embed]['importance'].values[0]:.6f}) ---\n")
+        f.write("Top 10 Correlações com Features Originais:\n")
+        for feat, corr in embedding_correlations[embed].head(10).items():
+            f.write(f"  {feat:40s} {corr:+.4f}\n")
+    
+    f.write("\n" + "="*70 + "\n")
+    f.write("INTERPRETAÇÃO t-SNE\n")
+    f.write("="*70 + "\n\n")
+    f.write(f"t-SNE projeta os 32 embeddings em 2D para visualização.\n")
+    f.write(f"Amostra analisada: {tsne_sample_size} contratos\n\n")
+    f.write("Observações:\n")
+    f.write("- Clusters verdes = regiões de contratos lucrativos\n")
+    f.write("- Clusters vermelhos = regiões de contratos com prejuízo\n")
+    f.write("- Separação clara indica que a NN aprendeu bem os padrões\n")
+    f.write("- Sobreposição indica casos ambíguos (difíceis de classificar)\n")
+
+print("\n✓ Relatório de interpretabilidade salvo em: ../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/interpretability_report.txt")
+print(f"✓ Total de gráficos SHAP salvos: {6 + len(top_3_features) + 3}")
+print("  - Summary plots (2)")
+print("  - Waterfall plots (3: TP, FP, FN)")
+print(f"  - Dependence plots ({len(top_3_features)})")
+print("  - Comparação FP vs TP (1)")
+print("  - Correlação de embeddings (1)")
+print("  - t-SNE visualizações (2)")
+
+# ---------- 16. GRÁFICOS (Tradicionais) ----------
 print("\n--- Gerando Gráficos ---")
 os.makedirs('../graficos/NN_LGBM_AUDITOR_OTIMIZADO', exist_ok=True)
 # 1. Histórico de treinamento (da Rede Neural)
