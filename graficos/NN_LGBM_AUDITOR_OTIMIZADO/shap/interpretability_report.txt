@@ -2,54 +2,54 @@
 RELATÓRIO DE INTERPRETABILIDADE - SHAP VALUES
 ======================================================================
 
-Data: 2025-11-13 12:51:31.990238
+Data: 2025-11-15 21:06:15.912905
 Amostra analisada: 1000 contratos
 
 --- TOP 20 FEATURES MAIS IMPORTANTES ---
     feature  importance
-   embed_26    0.085392
-    embed_6    0.058821
-    embed_1    0.026953
-   embed_29    0.020858
-   embed_15    0.018451
-    embed_0    0.013559
-    embed_4    0.011023
-   embed_10    0.010218
-    embed_8    0.005630
-Cidade_Loja    0.004766
-   embed_22    0.004736
-   embed_23    0.004640
-    embed_5    0.002774
-   embed_25    0.001995
-    embed_9    0.001687
-    embed_7    0.001197
-   embed_30    0.000996
-  municipio    0.000945
-   embed_20    0.000797
-   embed_28    0.000743
+   embed_21    0.763428
+   embed_17    0.277404
+   embed_29    0.087359
+   embed_14    0.066111
+   embed_30    0.049935
+    embed_4    0.042645
+Cidade_Loja    0.034313
+   embed_18    0.033878
+    embed_3    0.033357
+   embed_24    0.019762
+   embed_27    0.019487
+  municipio    0.012768
+   embed_26    0.011652
+ Mercadoria    0.011607
+   embed_22    0.009954
+   embed_31    0.008825
+   embed_19    0.008491
+    embed_1    0.008166
+    embed_6    0.007589
+   embed_10    0.007463
 
 --- ANÁLISE DE ERROS ---
-Falsos Positivos: 157 (15.70%)
-Falsos Negativos: 31 (3.10%)
-True Positives: 768 (76.80%)
+Falsos Positivos: 159 (15.90%)
+Falsos Negativos: 30 (3.00%)
+True Positives: 769 (76.90%)
 
 --- DIFERENÇA DE IMPORTÂNCIA: FP vs TP ---
     feature  FP_mean_shap  TP_mean_shap      diff
-    embed_6      0.066194      0.055421  0.010773
-   embed_26      0.071886      0.065547  0.006339
-   embed_29      0.018959      0.014926  0.004033
-    embed_1      0.025496      0.022511  0.002985
-   embed_15      0.017931      0.015491  0.002440
-Cidade_Loja      0.005318      0.004175  0.001143
-    embed_8      0.006676      0.005549  0.001127
-    embed_4      0.011782      0.010895  0.000887
-    embed_0      0.013137      0.012294  0.000844
-   embed_22      0.004237      0.003626  0.000611
-    embed_9      0.002027      0.001425  0.000603
-   embed_10      0.008646      0.008194  0.000452
-   embed_25      0.001467      0.001748 -0.000281
-    embed_5      0.002618      0.002348  0.000270
-  municipio      0.001056      0.000806  0.000251
+   embed_29      0.099437      0.077454  0.021983
+   embed_17      0.289225      0.274686  0.014538
+   embed_30      0.048199      0.035829  0.012370
+   embed_14      0.063304      0.051487  0.011817
+Cidade_Loja      0.041163      0.031428  0.009735
+    embed_3      0.038982      0.029690  0.009292
+   embed_18      0.035003      0.025866  0.009138
+    embed_4      0.040570      0.031830  0.008741
+   embed_21      0.670251      0.676705 -0.006453
+ Mercadoria      0.015617      0.010182  0.005435
+  municipio      0.016061      0.011108  0.004953
+   embed_24      0.022665      0.019805  0.002860
+   embed_19      0.009245      0.006613  0.002632
+   embed_10      0.009064      0.007011  0.002053
+   embed_26      0.012859      0.011323  0.001537
 
 ======================================================================
 ANÁLISE DOS EMBEDDINGS
@@ -59,44 +59,44 @@ Os embeddings são representações de 32 dimensões aprendidas pela
 Rede Neural. Eles capturam padrões complexos das 99 features originais.
 
 
---- EMBED_26 (Importância SHAP: 0.085392) ---
+--- EMBED_21 (Importância SHAP: 0.763428) ---
 Top 10 Correlações com Features Originais:
-  descricao_da_Profissao_te                +0.6551
-  Mercadoria_te                            +0.5575
-  plano_financiamento                      +0.3299
-  Cidade_Loja_te                           +0.3298
-  municipio_te                             +0.3295
-  Score_MC                                 +0.2090
-  valor_financiado                         +0.1976
-  Grupo_MC_GRUPO 4                         +0.1566
-  Tipo_Cliente_NOVO                        +0.1475
-  categorias_da_Profissao_invalido         +0.1463
+  descricao_da_Profissao_te                +0.6444
+  Mercadoria_te                            +0.5301
+  Cidade_Loja_te                           +0.3789
+  municipio_te                             +0.3787
+  plano_financiamento                      +0.3558
+  valor_financiado                         +0.2388
+  Score_MC                                 +0.2311
+  Grupo_MC_GRUPO 4                         +0.2061
+  Tipo_Cliente_NOVO                        +0.1709
+  uf_PR                                    +0.1578
 
---- EMBED_6 (Importância SHAP: 0.058821) ---
+--- EMBED_17 (Importância SHAP: 0.277404) ---
 Top 10 Correlações com Features Originais:
-  descricao_da_Profissao_te                +0.4486
-  Mercadoria_te                            +0.4322
-  plano_financiamento                      +0.3753
-  Cidade_Loja_te                           +0.3063
-  municipio_te                             +0.3062
-  valor_financiado                         +0.2645
-  categorias_te                            +0.2293
-  categorias_da_Profissao_invalido         +0.2282
-  Grupo_MC_nan                             +0.2171
-  Grupo_MC_GRUPO 4                         +0.2171
+  descricao_da_Profissao_te                +0.4485
+  categorias_da_Profissao_invalido         +0.3753
+  Mercadoria_te                            +0.3632
+  plano_financiamento                      +0.2559
+  Grupo_MC_GRUPO 4                         +0.2493
+  municipio_te                             +0.2419
+  Cidade_Loja_te                           +0.2417
+  Score_MC                                 +0.2232
+  Tipo_Cliente_NOVO                        +0.1983
+  Grupo_MC_nan                             +0.1888
 
---- EMBED_1 (Importância SHAP: 0.026953) ---
+--- EMBED_29 (Importância SHAP: 0.087359) ---
 Top 10 Correlações com Features Originais:
-  descricao_da_Profissao_te                +0.6265
-  Mercadoria_te                            +0.5774
-  plano_financiamento                      +0.3068
-  Cidade_Loja_te                           +0.2881
-  municipio_te                             +0.2879
-  Score_MC                                 +0.2274
-  valor_financiado                         +0.1802
-  Grupo_MC_GRUPO 4                         +0.1491
-  Tipo_Cliente_NOVO                        +0.1396
-  categorias_da_Profissao_invalido         +0.1220
+  descricao_da_Profissao_te                +0.5322
+  plano_financiamento                      +0.4361
+  Cidade_Loja_te                           +0.4299
+  municipio_te                             +0.4297
+  valor_financiado                         +0.3255
+  Mercadoria_te                            +0.3253
+  Grupo_MC_GRUPO 4                         +0.2637
+  Tipo_Cliente_NOVO                        +0.2414
+  Grupo_MC_nan                             +0.2378
+  uf_PR                                    +0.2323
 
 ======================================================================
 INTERPRETAÇÃO t-SNE

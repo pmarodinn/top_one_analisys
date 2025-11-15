@@ -23,7 +23,9 @@ def load_and_preprocess_v3(filepath):
     cols_comma_decimal = [
         'valor_inicial_da_prestacao', 'salario_perc', 'lucro', 'IPCA',
         'Score_MC', 'idhm_2010', 'idhm_renda_2010', 
-        'idhm_longevidade_2010', 'idhm_educacao_2010'
+        'idhm_longevidade_2010', 'idhm_educacao_2010',
+        'populacao', 'area', 'densidade_pop', 'preco_combustivel',
+        'valor_cestabasica', 'preco_cb_perc'
     ]
     for col in cols_comma_decimal:
         if col in df.columns:
@@ -85,7 +87,7 @@ def load_and_preprocess_v3(filepath):
 
 # Bloco de execução principal
 if __name__ == "__main__":
-    filepath = '../data/dataset_interno_top_one.csv'
+    filepath = '../data/dataset_interno_top_one_atualizado.csv'
     df_processado = load_and_preprocess_v3(filepath)
     
     if df_processado is not None:

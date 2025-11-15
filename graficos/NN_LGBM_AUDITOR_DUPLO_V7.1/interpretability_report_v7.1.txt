@@ -1,0 +1,62 @@
+======================================================================
+RELATÓRIO DE INTERPRETABILIDADE - DUAL-NN + LGBM (V7.1)
+======================================================================
+
+Data: 2025-11-15 19:35:37
+Amostra SHAP: 1000 contratos
+
+--- ESTRATÉGIA V7.1: INADIMPLENTES LUCRATIVOS ---
+NN-A: Adimplente (100%) vs Inadimplente (<100%)
+NN-B: Lucro entre Inadimplentes (treinada com 9,988 inadimplentes)
+LGBM: Fusão das duas visões para decisão final
+
+--- TOP 20 FEATURES (SHAP) ---
+               feature  importance               tipo
+   nn_prob_adimplencia    0.144600   Prob_Adimplencia
+  nn_prob_lucro_inadim    0.042431  Prob_Lucro_Inadim
+           Cidade_Loja    0.008015           Original
+  embed_lucro_inadim_5    0.007570 Embed_Lucro_Inadim
+   embed_adimplencia_6    0.005029  Embed_Adimplencia
+ embed_lucro_inadim_25    0.005020 Embed_Lucro_Inadim
+ embed_lucro_inadim_12    0.004809 Embed_Lucro_Inadim
+  embed_lucro_inadim_3    0.004321 Embed_Lucro_Inadim
+  embed_lucro_inadim_0    0.003734 Embed_Lucro_Inadim
+  embed_lucro_inadim_4    0.003164 Embed_Lucro_Inadim
+  embed_adimplencia_24    0.002300  Embed_Adimplencia
+descricao_da_Profissao    0.002069           Original
+             score_SPC    0.002022           Original
+  embed_lucro_inadim_8    0.002013 Embed_Lucro_Inadim
+  embed_lucro_inadim_1    0.001768 Embed_Lucro_Inadim
+  embed_adimplencia_25    0.001749  Embed_Adimplencia
+      valor_financiado    0.001580           Original
+   embed_adimplencia_4    0.001508  Embed_Adimplencia
+  embed_lucro_inadim_9    0.001490 Embed_Lucro_Inadim
+ embed_lucro_inadim_30    0.001361 Embed_Lucro_Inadim
+
+--- IMPORTÂNCIA POR TIPO ---
+                         sum      mean  count  pct_total
+tipo                                                    
+Prob_Adimplencia    0.144600  0.144600      1  53.385458
+Embed_Lucro_Inadim  0.043391  0.001356     32  16.019634
+Prob_Lucro_Inadim   0.042431  0.042431      1  15.665344
+Original            0.021537  0.000525     41   7.951450
+Embed_Adimplencia   0.018901  0.000591     32   6.978115
+
+--- RANKING DAS PROBABILIDADES ---
+nn_prob_adimplencia: #74 (importance: 0.1446)
+nn_prob_lucro_inadim: #107 (importance: 0.0424)
+
+--- CORRELAÇÃO EMBEDDINGS (TOP 10) ---
+ embed_idx  correlation  adimplencia_importance  lucro_inadim_importance  avg_importance
+         5     0.202173                0.000000                 0.007570        0.003785
+        25    -0.107998                0.001749                 0.005020        0.003385
+         6    -0.006470                0.005029                 0.000178        0.002603
+         0     0.052177                0.001081                 0.003734        0.002407
+        12    -0.027362                0.000000                 0.004809        0.002405
+         4    -0.002031                0.001508                 0.003164        0.002336
+         3     0.028269                0.000000                 0.004321        0.002160
+        27    -0.000338                0.001338                 0.001335        0.001336
+        24    -0.133037                0.002300                 0.000347        0.001324
+        10     0.062632                0.001212                 0.000921        0.001067
+
+✅ 32 pares com correlação <0.3 (complementares)

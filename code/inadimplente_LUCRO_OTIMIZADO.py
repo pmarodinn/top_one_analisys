@@ -27,7 +27,8 @@ import seaborn as sns
 def load_and_preprocess_v3(filepath):
     df = pd.read_csv(filepath, sep=';', decimal=',')
     cols_comma = ['valor_inicial_da_prestacao','salario_perc','lucro','IPCA',
-                  'Score_MC','idhm_2010','idhm_renda_2010','idhm_longevidade_2010','idhm_educacao_2010']
+                  'Score_MC','idhm_2010','idhm_renda_2010','idhm_longevidade_2010','idhm_educacao_2010',
+                  'populacao','area','densidade_pop','preco_combustivel','valor_cestabasica','preco_cb_perc']
     for c in cols_comma:
         if c in df.columns:
             df[c] = df[c].astype(str).str.replace(',', '.', regex=False)
@@ -84,7 +85,7 @@ print("🎯 MODELO DE OTIMIZAÇÃO DIRETA DE LUCRO")
 print("="*70)
 
 # ---------- 3. PREPARAÇÃO DOS DADOS ----------
-DATA_FILE = '../data/dataset_interno_top_one.csv'
+DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 df = calcular_metricas_financeiras(df)
 

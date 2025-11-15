@@ -19,7 +19,7 @@ import os
 # Criar diretório para gráficos
 os.makedirs('../graficos/XGBOOST', exist_ok=True)
 
-dataset_maduro = load_and_preprocess_v3('../data/dataset_interno_top_one.csv')
+dataset_maduro = load_and_preprocess_v3('../data/dataset_interno_top_one_atualizado.csv')
 
 if dataset_maduro is not None:
     
@@ -41,7 +41,7 @@ if dataset_maduro is not None:
     # --- 2. Dividir em Treino e Teste ---
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, 
-        test_size=0.5, 
+        test_size=0.2, 
         random_state=42, 
         stratify=y
     )
@@ -90,17 +90,17 @@ if dataset_maduro is not None:
         # Fórmula: peso_linear * (1 + log(1 + peso_linear))
         scale_pos_weight = peso_linear * (1 + np.log1p(peso_linear))
         
-        print(f"\n Pesos baseados em impacto financeiro:")
+        print(f"\nPesos baseados em impacto financeiro:")
         print(f"   Custo médio por inadimplente:     R$ {custo_medio_inadimplente:,.2f}")
         print(f"   Ganho médio por adimplente:       R$ {ganho_medio_adimplente:,.2f}")
         print(f"   Peso Linear:                      {peso_linear:.2f}")
         print(f"   Scale Pos Weight (Log ajustado):  {scale_pos_weight:.2f}")
-        print(f"   Fator de amplificação:            {scale_pos_weight/peso_linear:.2f}x")
+    else:
+        scale_pos_weight = 1.0
 
     model_xgb = xgb.XGBClassifier(
         objective='binary:logistic',
         eval_metric='logloss',
-        use_label_encoder=False,
         n_estimators=100,
         learning_rate=0.1,
         max_depth=4,
@@ -128,14 +128,14 @@ if dataset_maduro is not None:
         percentual_treino = (arrecadacoes_treino / abs(perdas_treino)) * 100 if perdas_treino != 0 else 0
         
         print("\n" + "="*70)
-        print(" ANÁLISE FINANCEIRA - DADOS DE TREINO")
+        print("ANÁLISE FINANCEIRA - DADOS DE TREINO")
         print("="*70)
-        print(f" Total de contratos no treino: {len(df_train_results):,}")
-        print(f" Arrecadações Totais (lucros positivos):  R$ {arrecadacoes_treino:,.2f}")
-        print(f" Perdas Totais (lucros negativos):        R$ {perdas_treino:,.2f}")
-        print(f" Arrecadação / Perda:                      {percentual_treino:.2f}%")
+        print(f"Total de contratos no treino: {len(df_train_results):,}")
+        print(f"Arrecadações Totais (lucros positivos):  R$ {arrecadacoes_treino:,.2f}")
+        print(f"Perdas Totais (lucros negativos):        R$ {perdas_treino:,.2f}")
+        print(f"Arrecadação / Perda:                      {percentual_treino:.2f}%")
         print(f"{'─'*70}")
-        print(f" Lucro Líquido Total:                      R$ {lucro_treino:,.2f}")
+        print(f"Lucro Líquido Total:                      R$ {lucro_treino:,.2f}")
         print("="*70)
 
     # --- 8. Avaliar o Modelo ---
@@ -162,14 +162,14 @@ if dataset_maduro is not None:
         percentual_teste = (arrecadacoes_teste / abs(perdas_teste)) * 100 if perdas_teste != 0 else 0
         
         print("\n" + "="*70)
-        print("💰 ANÁLISE FINANCEIRA - DADOS DE TESTE (VALIDAÇÃO)")
+        print("ANÁLISE FINANCEIRA - DADOS DE TESTE (VALIDAÇÃO)")
         print("="*70)
-        print(f"📊 Total de contratos no teste: {len(df_test_results):,}")
-        print(f"💚 Arrecadações Totais (lucros positivos):  R$ {arrecadacoes_teste:,.2f}")
-        print(f"📉 Perdas Totais (lucros negativos):        R$ {perdas_teste:,.2f}")
-        print(f"📈 Arrecadação / Perda:                      {percentual_teste:.2f}%")
+        print(f"Total de contratos no teste: {len(df_test_results):,}")
+        print(f"Arrecadações Totais (lucros positivos):  R$ {arrecadacoes_teste:,.2f}")
+        print(f"Perdas Totais (lucros negativos):        R$ {perdas_teste:,.2f}")
+        print(f"Arrecadação / Perda:                      {percentual_teste:.2f}%")
         print(f"{'─'*70}")
-        print(f"💵 Lucro Líquido Total:                      R$ {lucro_teste:,.2f}")
+        print(f"Lucro Líquido Total:                      R$ {lucro_teste:,.2f}")
         print("="*70)
     
     try:
@@ -192,7 +192,6 @@ if dataset_maduro is not None:
     model_xgb_no_weight = xgb.XGBClassifier(
         objective='binary:logistic',
         eval_metric='logloss',
-        use_label_encoder=False,
         n_estimators=100,
         learning_rate=0.1,
         max_depth=4,
@@ -252,14 +251,20 @@ if dataset_maduro is not None:
         X_test_sample = X_test.iloc[X_test_sample_indices]
         X_test_transformed = preprocessor.transform(X_test_sample)
         
+        # Converter para DataFrame com nomes de features
+        X_test_transformed_df = pd.DataFrame(
+            X_test_transformed,
+            columns=all_feature_names
+        )
+        
         explainer = shap.TreeExplainer(pd_model_pipeline.named_steps['classifier'])
-        shap_values = explainer.shap_values(X_test_transformed)
+        shap_values = explainer.shap_values(X_test_transformed_df)
         
         # SHAP Summary Plot com nomes simplificados
         feature_names_short = [f[:30] for f in all_feature_names]  # Limitar tamanho dos nomes
         
         plt.figure(figsize=(12, 10))
-        shap.summary_plot(shap_values, X_test_transformed, 
+        shap.summary_plot(shap_values, X_test_transformed_df, 
                          feature_names=feature_names_short,
                          show=False, max_display=15)
         plt.tight_layout()
@@ -268,7 +273,7 @@ if dataset_maduro is not None:
         print("✓ SHAP Summary Plot salvo em graficos/XGBOOST/shap_summary.png")
         
     except Exception as e:
-        print(f"⚠️ Erro ao gerar SHAP values: {e}")
+        print(f"  Erro ao gerar SHAP values: {e}")
         print("   Gerando gráfico de importância de features alternativo...")
         
         # Gráfico alternativo: Feature Importance
@@ -286,6 +291,6 @@ if dataset_maduro is not None:
             plt.close()
             print("✓ Feature Importance Plot salvo em graficos/XGBOOST/feature_importance.png")
         except Exception as e2:
-            print(f"⚠️ Erro ao gerar gráfico alternativo: {e2}")
+            print(f" Erro ao gerar gráfico alternativo: {e2}")
     
-    print("\n✅ Todos os gráficos foram salvos em graficos/XGBOOST/")
+    print("\n Todos os gráficos foram salvos em graficos/XGBOOST/")

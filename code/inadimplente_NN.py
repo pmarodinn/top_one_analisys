@@ -40,7 +40,9 @@ def load_and_preprocess_v3(filepath):
     cols_comma_decimal = [
         'valor_inicial_da_prestacao', 'salario_perc', 'lucro', 'IPCA',
         'Score_MC', 'idhm_2010', 'idhm_renda_2010', 
-        'idhm_longevidade_2010', 'idhm_educacao_2010'
+        'idhm_longevidade_2010', 'idhm_educacao_2010',
+        'populacao', 'area', 'densidade_pop', 'preco_combustivel',
+        'valor_cestabasica', 'preco_cb_perc'
     ]
     
     for col in cols_comma_decimal:
@@ -116,7 +118,7 @@ def criar_modelo_pd_nn(input_shape):
 # --- FUNÇÃO PRINCIPAL DE EXECUÇÃO ---
 def run_pd_model():
     # --- Carregar os dados (Versão 3 - Simplificada) ---
-    dataset_maduro = load_and_preprocess_v3('../data/dataset_interno_top_one.csv')
+    dataset_maduro = load_and_preprocess_v3('../data/dataset_interno_top_one_atualizado.csv')
 
     if dataset_maduro is None:
         print("Falha ao carregar os dados. Encerrando.")

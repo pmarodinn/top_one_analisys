@@ -1,5 +1,5 @@
 """
-REDE NEURAL + AUDITOR LGBM (STACKING) - VERSÃO 6.2
+REDE NEURAL + AUDITOR LGBM (STACKING) - VERSÃO 6.4
 =====================================================
 Abordagem em Três Etapas:
 1. Rede Neural (Filtro): A NN é treinada com features de alta
@@ -7,7 +7,11 @@ Abordagem em Três Etapas:
 2. Otimização Bayesiana (Optuna): O Optuna otimiza o LGBM para LUCRO.
 3. Auditor LightGBM (Especialista): O LGBM final é treinado.
 
-CORREÇÃO: Corrigido bug de 'NaN' que impedia o treino da NN.
+NOVA OTIMIZAÇÃO v6.4: Treinamento mais longo da NN
+- Épocas: 100→200 (dobrado)
+- Early stopping patience: 15→30 (dobrado)  
+- ReduceLR patience: 15→25 (demora mais para reduzir LR)
+- Objetivo: Permitir NN encontrar mínimo global melhor
 """
 
 import os
@@ -50,9 +54,9 @@ CONFIG = {
     'embedding_dim': 32,
     'use_batchnorm': True,
     'nn_lr': 1e-3,
-    'nn_epochs': 100,
+    'nn_epochs': 200,  # 🔥 AUMENTADO: 100→200 para treinar mais
     'nn_batch_size': 256,
-    'early_stop_patience_nn': 15,
+    'early_stop_patience_nn': 30,  # 🔥 AUMENTADO: 15→30 para dar mais chances
 
     # Optuna / LGBM
     'optuna_trials': 100,
@@ -64,7 +68,8 @@ CONFIG = {
 def load_and_preprocess_v3(filepath):
     df = pd.read_csv(filepath, sep=';', decimal=',')
     cols_comma = ['valor_inicial_da_prestacao','salario_perc','lucro','IPCA',
-                  'Score_MC','idhm_2010','idhm_renda_2010','idhm_longevidade_2010','idhm_educacao_2010']
+                  'Score_MC','idhm_2010','idhm_renda_2010','idhm_longevidade_2010','idhm_educacao_2010',
+                  'populacao','area','densidade_pop','preco_combustivel','valor_cestabasica','preco_cb_perc']
     for c in cols_comma:
         if c in df.columns:
             df[c] = df[c].astype(str).str.replace(',', '.', regex=False)
@@ -91,11 +96,11 @@ def load_and_preprocess_v3(filepath):
     return df
 
 print("="*70)
-print("REDE NEURAL + AUDITOR LGBM OTIMIZADO (V6.2 - CORRIGIDO)")
+print("REDE NEURAL + AUDITOR LGBM OTIMIZADO (V6.4 - TREINAMENTO LONGO)")
 print("="*70)
 
 # ---------- 2. PREPARAÇÃO DOS DADOS ----------
-DATA_FILE = '../data/dataset_interno_top_one.csv'
+DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 print(f"\nDados carregados: {len(df)} linhas")
@@ -291,7 +296,8 @@ early_stop_lucro = LucroEarlyStopping(
     X_val=X_test_scaled, y_val_lucro=y_test_lucro, patience=CONFIG.get('early_stop_patience_nn', 15), verbose=1
 )
 reduce_lr = callbacks.ReduceLROnPlateau(
-    monitor='val_auc', mode='max', factor=0.5, patience=15, min_lr=1e-6, verbose=1
+    monitor='val_auc', mode='max', factor=0.5, patience=25, min_lr=1e-6, verbose=1
+    # 🔥 AUMENTADO: patience 15→25 para demorar mais para reduzir LR
 )
 
 # ---------- 6. TREINAMENTO (Etapa 1: Rede Neural) ----------

@@ -14,7 +14,8 @@ import seaborn as sns
 def load_and_preprocess_v3(filepath):
     df = pd.read_csv(filepath, sep=';', decimal=',')
     cols_comma = ['valor_inicial_da_prestacao','salario_perc','lucro','IPCA',
-                  'Score_MC','idhm_2010','idhm_renda_2010','idhm_longevidade_2010','idhm_educacao_2010']
+                  'Score_MC','idhm_2010','idhm_renda_2010','idhm_longevidade_2010','idhm_educacao_2010',
+                  'populacao','area','densidade_pop','preco_combustivel','valor_cestabasica','preco_cb_perc']
     for c in cols_comma:
         if c in df.columns:
             df[c] = df[c].astype(str).str.replace(',', '.', regex=False)
@@ -35,7 +36,7 @@ def load_and_preprocess_v3(filepath):
     return df
 
 # ---------- 2.  PREPARAÇÃO ----------
-DATA_FILE = '../data/dataset_interno_top_one.csv'
+DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 print(f"Dados brutos carregados: {len(df)} linhas")
@@ -68,12 +69,14 @@ X_train, X_test, y_train, y_test, lucro_train, lucro_test = train_test_split(
     X, y, lucro, test_size=0.2, random_state=42, stratify=y)
 
 # Calcular e exibir pesos baseados em impacto financeiro
-custo_medio_inadimplente = abs(lucro_train[y_train == 1].mean())
-ganho_medio_adimplente = lucro_train[y_train == 0].mean()
+# IMPORTANTE: Calcular baseado no LUCRO REAL, não na classificação de inadimplência
+# Nem todo inadimplente gera prejuízo, e nem todo adimplente gera lucro!
+custo_medio_inadimplente = abs(lucro_train[lucro_train < 0].mean())
+ganho_medio_adimplente = lucro_train[lucro_train > 0].mean()
 peso_linear = custo_medio_inadimplente / ganho_medio_adimplente
 scale_pos_weight = peso_linear * (1 + np.log1p(peso_linear))
 
-print(f"\n💰 Pesos baseados em impacto financeiro:")
+print(f"\nPesos baseados em impacto financeiro:")
 print(f"   Custo médio por inadimplente:     R$ {custo_medio_inadimplente:,.2f}")
 print(f"   Ganho médio por adimplente:       R$ {ganho_medio_adimplente:,.2f}")
 print(f"   Peso Linear:                      {peso_linear:.2f}")
@@ -167,14 +170,14 @@ print(f"**ROC AUC Score (Poder de Separação): {auc_score:.4f}**")
 
 # TEOREMA DE BAYES: Ajuste inteligente das probabilidades
 # P(inadimplente|score) = P(score|inadimplente) * P(inadimplente) / P(score)
-print("\n🧮 Aplicando Teorema de Bayes para calibração inteligente...")
+print("\nAplicando Teorema de Bayes para calibração inteligente...")
 
 # Calcular priors (probabilidades a priori)
 prior_adimplente = (y_train == 0).sum() / len(y_train)
 prior_inadimplente = (y_train == 1).sum() / len(y_train)
 
-print(f"📊 Prior Adimplente: {prior_adimplente:.4f} ({prior_adimplente*100:.2f}%)")
-print(f"📊 Prior Inadimplente: {prior_inadimplente:.4f} ({prior_inadimplente*100:.2f}%)")
+print(f"Prior Adimplente: {prior_adimplente:.4f} ({prior_adimplente*100:.2f}%)")
+print(f"Prior Inadimplente: {prior_inadimplente:.4f} ({prior_inadimplente*100:.2f}%)")
 
 # Ajustar probabilidades usando razão de custo/benefício
 # Peso Bayesiano = (Custo FN / Custo FP) * (Prior Adimplente / Prior Inadimplente)
@@ -185,9 +188,9 @@ razao_custo = custo_fn / custo_fp
 razao_prior = prior_adimplente / prior_inadimplente
 peso_bayesiano = razao_custo * razao_prior
 
-print(f"💰 Razão de Custo (FN/FP): {razao_custo:.2f}")
-print(f"📈 Razão de Prior (Adimpl/Inadimpl): {razao_prior:.2f}")
-print(f"⚖️  Peso Bayesiano Total: {peso_bayesiano:.2f}")
+print(f"Razão de Custo (FN/FP): {razao_custo:.2f}")
+print(f"Razão de Prior (Adimpl/Inadimpl): {razao_prior:.2f}")
+print(f"Peso Bayesiano Total: {peso_bayesiano:.2f}")
 
 # Aplicar calibração: aumentar probabilidade de inadimplência proporcionalmente
 # P_calibrada = P_raw^(1/peso_bayesiano) -> isso "estica" as probabilidades baixas
@@ -213,9 +216,9 @@ def calibrar_bayes(y_prob_raw, peso):
 
 y_prob = calibrar_bayes(y_prob_raw, peso_bayesiano)
 
-print(f"📉 Probabilidade média ANTES da calibração: {y_prob_raw.mean():.4f}")
-print(f"📈 Probabilidade média DEPOIS da calibração: {y_prob.mean():.4f}")
-print(f"🎯 Aumento médio: {((y_prob.mean()/y_prob_raw.mean())-1)*100:.2f}%")
+print(f"Probabilidade média ANTES da calibração: {y_prob_raw.mean():.4f}")
+print(f"Probabilidade média DEPOIS da calibração: {y_prob.mean():.4f}")
+print(f"Aumento médio: {((y_prob.mean()/y_prob_raw.mean())-1)*100:.2f}%")
 
 def melhor_threshold(y_true, y_prob, lucro):
     best_t, best_lucro = 0.5, -np.inf
@@ -269,16 +272,16 @@ num_lucrativos = (lucro_test > 0).sum()
 num_prejuizo = (lucro_test < 0).sum()
 
 print("\n" + "="*70)
-print("💰 ANÁLISE FINANCEIRA - DADOS DE TESTE (VALIDAÇÃO)")
+print("ANÁLISE FINANCEIRA - DADOS DE TESTE (VALIDAÇÃO)")
 print("="*70)
-print(f"📊 Total de contratos no teste: {len(lucro_test):,}")
-print(f"💚 Arrecadações Totais (lucros positivos):  R$ {arrecadacoes_teste:,.2f}")
-print(f"📉 Perdas Totais (lucros negativos):        R$ {perdas_teste:,.2f}")
-print(f"📈 Arrecadação / Perda:                      {percentual_teste:.2f}%")
+print(f"Total de contratos no teste: {len(lucro_test):,}")
+print(f"Arrecadações Totais (lucros positivos):  R$ {arrecadacoes_teste:,.2f}")
+print(f"Perdas Totais (lucros negativos):        R$ {perdas_teste:,.2f}")
+print(f"Arrecadação / Perda:                      {percentual_teste:.2f}%")
 print(f"{'─'*70}")
-print(f"💵 Lucro Líquido Total (Cenário Real):       R$ {lucro_liquido_teste:,.2f}")
+print(f"Lucro Líquido Total (Cenário Real):       R$ {lucro_liquido_teste:,.2f}")
 print(f"{'─'*70}")
-print(f"🎯 LUCRO MÁXIMO TEÓRICO:")
+print(f"LUCRO MÁXIMO TEÓRICO:")
 print(f"   (Se escolhêssemos apenas os {num_lucrativos:,} lucrativos)")
 print(f"   Lucro Máximo Possível:                    R$ {lucro_maximo_teorico:,.2f}")
 print(f"   Eficiência Atual:                         {(lucro_liquido_teste/lucro_maximo_teorico)*100:.2f}%")
@@ -287,7 +290,7 @@ print("="*70)
 t_opt, lucro_opt = melhor_threshold(y_test, y_prob, lucro_test)
 t_opt_raw, lucro_opt_raw = melhor_threshold(y_test, y_prob_raw, lucro_test)
 
-print(f"\n🎯 OTIMIZAÇÃO DE THRESHOLD:")
+print(f"\nOTIMIZAÇÃO DE THRESHOLD:")
 print(f"{'─'*70}")
 print(f"Threshold ótimo (SEM Bayes): {t_opt_raw:.2f}  |  Lucro: R$ {lucro_opt_raw:,.2f}")
 print(f"   Eficiência vs Máximo Teórico: {(lucro_opt_raw/lucro_maximo_teorico)*100:.2f}%")
@@ -295,12 +298,12 @@ print(f"{'─'*70}")
 print(f"Threshold ótimo (COM Bayes): {t_opt:.2f}  |  Lucro: R$ {lucro_opt:,.2f}")
 print(f"   Eficiência vs Máximo Teórico: {(lucro_opt/lucro_maximo_teorico)*100:.2f}%")
 print(f"{'─'*70}")
-print(f"💎 Ganho com Bayes: R$ {lucro_opt - lucro_opt_raw:,.2f} ({((lucro_opt/lucro_opt_raw)-1)*100:.2f}%)")
+print(f"Ganho com Bayes: R$ {lucro_opt - lucro_opt_raw:,.2f} ({((lucro_opt/lucro_opt_raw)-1)*100:.2f}%)")
 
 # Encontrar threshold que satisfaça recall mínimo (ex: 12%) e maximize lucro
 min_recall_target = 0.12
 t_opt_recall, lucro_opt_recall = melhor_threshold_com_recall_min(y_test, y_prob, lucro_test, min_recall=min_recall_target)
-print(f"\n📌 Threshold otimizado por recall mínimo ({min_recall_target*100:.0f}%): {t_opt_recall:.2f}  |  Lucro: R$ {lucro_opt_recall:,.2f}")
+print(f"\nThreshold otimizado por recall mínimo ({min_recall_target*100:.0f}%): {t_opt_recall:.2f}  |  Lucro: R$ {lucro_opt_recall:,.2f}")
 
 # Comparar métricas de classificação
 y_pred_raw = (y_prob_raw >= t_opt_raw).astype(int)
@@ -309,7 +312,7 @@ y_pred_bayes = (y_prob >= t_opt).astype(int)
 cm_raw = confusion_matrix(y_test, y_pred_raw)
 cm_bayes = confusion_matrix(y_test, y_pred_bayes)
 
-print("\n📊 COMPARAÇÃO DE DETECÇÃO DE INADIMPLENTES:")
+print("\nCOMPARAÇÃO DE DETECÇÃO DE INADIMPLENTES:")
 print(f"{'Métrica':<30} {'Sem Bayes':>15} {'Com Bayes':>15} {'Melhoria':>15}")
 print("="*75)
 
