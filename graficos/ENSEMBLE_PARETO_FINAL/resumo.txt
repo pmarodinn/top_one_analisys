@@ -1,0 +1,34 @@
+================================================================================
+MODELO FINAL: ENSEMBLE HETEROGÊNEO + OTIMIZAÇÃO MULTI-OBJETIVO
+================================================================================
+
+Total de Contratos: 9,241
+Split: 80/20
+
+--- DESEMPENHO DOS MODELOS BASE ---
+NN:   MAE = R$ 661.55, R² = 0.0421
+LGBM: MAE = R$ 608.66, R² = 0.0869
+XGB:  MAE = R$ 607.01, R² = 0.0920
+META: MAE = R$ 617.93, R² = -0.0395
+
+--- RESULTADOS FINAIS ---
+Baseline:          R$ 2,427,238.31
+Máximo Teórico:    R$ 4,781,073.51
+ENSEMBLE+PARETO:   R$ 2,576,824.24
+
+Ganho vs Baseline: R$ +149,585.93 (+6.16%)
+
+--- PARETO FRONTIER ---
+Soluções Ótimas: 5
+Threshold Selecionado: R$ -83.50
+FDR (Taxa Inadimplência): 23.31%
+Taxa de Aprovação: 86.0%
+
+--- MATRIZ DE CONFUSÃO ---
+True Negatives (Adimplente Aceito):     6,096
+False Positives (Adimplente Rejeitado): 659
+False Negatives (Inadimplente Aceito):  1,853
+True Positives (Inadimplente Rejeitado):633
+Precision (Precisão): 48.99%
+Recall (Sensibilidade): 25.46%
+F1-Score: 33.51%

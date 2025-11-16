@@ -1,0 +1,59 @@
+======================================================================
+RELATÓRIO - VALIDAÇÃO TEMPORAL (TIME SERIES SPLIT)
+======================================================================
+
+Total de Folds: 3
+Período: 2023-10 até 2023-12
+
+--- DESEMPENHO MÉDIO (REGRESSÃO DE LUCRO) ---
+MAE NN: R$ 595.51 ± R$ 46.41
+R² NN: 0.0556 ± 0.0293
+MAE LGBM: R$ 589.68 ± R$ 44.50
+R² LGBM: 0.0499 ± 0.0436
+Threshold Lucro: R$ -341.75 ± R$ 101.18
+
+--- LUCRO TOTAL (7 MESES) ---
+Baseline: R$ 2,952,178.48
+Modelo:   R$ 3,094,881.32
+
+Ganho vs Baseline: R$ +142,702.84 (+4.83%)
+
+--- LUCRO MENSAL (MÉDIO) ---
+Baseline: R$ 984,059.49 ± R$ 70,085.65
+Modelo:   R$ 1,031,627.11 ± R$ 39,431.68
+
+Ganho/mês vs Baseline: R$ 47,567.61 (+5.00%)
+
+--- ESTABILIDADE ---
+Volatilidade R² (CV): 0.8748
+Volatilidade Lucro (CV): 0.0382
+
+--- TENDÊNCIAS ---
+R² LGBM: Slope 0.010323 (p=0.8479)
+Ganho %: Slope -2.223421 (p=0.5743)
+
+--- RESULTADOS POR MÊS ---
+
+2023-10:
+  Lucro: R$ 986,971.06 (Baseline: R$ 906,711.99)
+  Ganho: R$ 80,259.07 (+8.85%)
+  R²: NN 0.0611 | LGBM 0.0640
+  MAE: NN R$ 638.41 | LGBM R$ 629.53
+  Threshold Lucro: R$ -419.19
+  Aprovação: 96.2%
+
+2023-11:
+  Lucro: R$ 1,061,651.60 (Baseline: R$ 1,043,349.28)
+  Ganho: R$ 18,302.32 (+1.75%)
+  R²: NN 0.0239 | LGBM 0.0009
+  MAE: NN R$ 601.87 | LGBM R$ 597.86
+  Threshold Lucro: R$ -378.79
+  Aprovação: 96.5%
+
+2023-12:
+  Lucro: R$ 1,046,258.66 (Baseline: R$ 1,002,117.21)
+  Ganho: R$ 44,141.45 (+4.40%)
+  R²: NN 0.0817 | LGBM 0.0846
+  MAE: NN R$ 546.24 | LGBM R$ 541.65
+  Threshold Lucro: R$ -227.27
+  Aprovação: 95.4%

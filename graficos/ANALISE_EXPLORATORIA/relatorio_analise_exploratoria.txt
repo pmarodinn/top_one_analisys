@@ -1,0 +1,64 @@
+================================================================================
+RELATÓRIO DE ANÁLISE EXPLORATÓRIA - TOP ONE MODEL V2
+================================================================================
+
+Data: 16 de novembro de 2025
+Total de Registros Analisados: 46,201
+
+--- ESTATÍSTICAS GERAIS ---
+Total de Contratos: 46201
+Adimplentes (100% pago): 33747
+Inadimplentes (<100% pago): 12454
+Taxa de Inadimplência: 26.96%
+Valor Total Financiado: R$ 70,628,875.95
+Total a Receber (100% adimplência): R$ 107,694,749.05
+Lucro Esperado (100% adimplência): R$ 36,611,522.94
+Lucro Real Total: R$ 12,281,812.75
+Lucro Médio por Contrato: R$ 265.83
+
+--- VARIÁVEL ALVO (pago_perc) ---
+Média: 82.75%
+Mediana: 100.00%
+Desvio Padrão: 32.36%
+Contratos com 100% pago: 33,747 (73.04%)
+Contratos com 0% pago: 2,338 (5.06%)
+
+--- TOP 5 CIDADES ---
+1. Sao Paulo: 1,513 contratos
+2. Tijucas Do Sul: 1,426 contratos
+3. Agudos Do Sul: 1,303 contratos
+4. Mandirituba: 1,169 contratos
+5. Campo Do Tenent: 1,140 contratos
+
+--- TOP 5 PROFISSÕES ---
+1. Aposentado: 4,862 contratos
+2. Vendedoro: 1,930 contratos
+3. Diaristo: 1,603 contratos
+4. Proprietario: 1,453 contratos
+5. Servicos Gerais: 1,304 contratos
+
+--- INADIMPLÊNCIA POR FAIXA DE PARCELAS (APENAS 0% PAGO) ---
+1-12: 4.17% (1399/33539)
+13-24: 7.41% (937/12648)
+25-36: 16.67% (1/12)
+37-48: 0.00% (0/2)
+49-60: 0.00% (0/0)
+60+: 0.00% (0/0)
+
+--- CORRELAÇÕES COM INADIMPLÊNCIA ---
+plano_financiamento: 0.331
+valor_financiado: 0.208
+score_SPC: -0.068
+Score_MC: -0.306
+lucro: -0.558
+pago_perc: -0.883
+
+================================================================================
+Arquivos Gerados:
+  - distribuicoes_gerais.png
+  - analise_financeira.png
+  - analise_geografica.png
+  - analise_profissao.png
+  - analise_parcelas.png
+  - correlacoes.png
+  - relatorio_analise_exploratoria.txt

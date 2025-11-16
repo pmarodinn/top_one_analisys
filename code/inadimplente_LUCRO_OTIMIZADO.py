@@ -258,16 +258,17 @@ num_lucrativos = (y_test_lucro > 0).sum()
 print("\n" + "="*70)
 print("📈 COMPARAÇÃO DE CENÁRIOS")
 print("="*70)
-print(f"{'Cenário':<40} {'Lucro':>15} {'Eficiência':>12} {'Contratos':>12}")
+print(f"{'Cenário':<45} {'Lucro':>15} {'Eficiência':>12} {'Contratos':>12}")
 print("="*70)
-print(f"{'1. Aceitar TODOS':<40} R$ {lucro_total_real:>12,.2f} {lucro_total_real/lucro_maximo_teorico:>11.2%} {len(y_test_lucro):>11,}")
-print(f"{'2. Máximo Teórico (só lucrativos)':<40} R$ {lucro_maximo_teorico:>12,.2f} {100.0:>11.2%} {num_lucrativos:>11,}")
-print(f"{'3. MODELO OTIMIZADO (threshold lucro)':<40} R$ {lucro_opt:>12,.2f} {lucro_opt/lucro_maximo_teorico:>11.2%} {num_aceitos_opt:>11,}")
+print(f"{'1. Aceitar TODOS (baseline)':<45} R$ {lucro_total_real:>12,.2f} {lucro_total_real/lucro_maximo_teorico:>11.2%} {len(y_test_lucro):>11,}")
+print(f"{'2. Máximo Teórico (só lucrativos perfeito)':<45} R$ {lucro_maximo_teorico:>12,.2f} {100.0:>11.2%} {num_lucrativos:>11,}")
+print(f"{'3. MODELO OTIMIZADO (threshold lucro)':<45} R$ {lucro_opt:>12,.2f} {lucro_opt/lucro_maximo_teorico:>11.2%} {num_aceitos_opt:>11,}")
 print("="*70)
 
 ganho_vs_aceitar_todos = lucro_opt - lucro_total_real
-print(f"\n💎 Ganho vs Aceitar Todos: R$ {ganho_vs_aceitar_todos:,.2f} ({(lucro_opt/lucro_total_real-1)*100:+.2f}%)")
-print(f"🎯 Distância do Máximo Teórico: R$ {lucro_maximo_teorico - lucro_opt:,.2f}")
+perc_vs_baseline = (lucro_opt/lucro_total_real - 1) * 100 if lucro_total_real != 0 else 0
+print(f"💎 Ganho MODELO vs Baseline (aceitar todos): R$ {ganho_vs_aceitar_todos:,.2f} ({perc_vs_baseline:+.2f}%)")
+print(f"📊 Distância do Máximo Teórico: R$ {lucro_maximo_teorico - lucro_opt:,.2f}")
 
 # ---------- 8. ANÁLISE DETALHADA ----------
 aceitar_otimizado = lucro_esperado_test >= threshold_opt
@@ -314,7 +315,7 @@ print("\n--- Gerando Gráficos ---")
 os.makedirs('../graficos/LUCRO_OTIMIZADO', exist_ok=True)
 
 # 1. Lucro Real vs Lucro Esperado
-fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+fig, axes = plt.subplots(2, 3, figsize=(20, 12))
 
 # Scatter: Lucro Real vs Esperado
 ax1 = axes[0, 0]
@@ -337,26 +338,45 @@ ax2.set_title('Otimização de Threshold', fontsize=14, fontweight='bold')
 ax2.legend()
 ax2.grid(alpha=0.3)
 
-# % Pago: Real vs Previsto
-ax3 = axes[1, 0]
-ax3.scatter(y_pred_perc_test, y_test_perc, alpha=0.5, s=10)
-ax3.plot([0, 1], [0, 1], 'r--', linewidth=2, label='Perfeito')
-ax3.set_xlabel('% Pago Previsto', fontsize=12)
-ax3.set_ylabel('% Pago Real', fontsize=12)
-ax3.set_title(f'% Pago: Real vs Previsto (R²={r2_score(y_test_perc, y_pred_perc_test):.3f})', fontsize=14, fontweight='bold')
-ax3.legend()
-ax3.grid(alpha=0.3)
+# Matriz de Confusão
+ax3 = axes[0, 2]
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax3, cbar=True,
+            xticklabels=['Pred: Rejeitar', 'Pred: Aceitar'],
+            yticklabels=['Real: Prejuízo', 'Real: Lucro'])
+ax3.set_xlabel('Predição do Modelo', fontsize=12)
+ax3.set_ylabel('Realidade', fontsize=12)
+ax3.set_title('Matriz de Confusão', fontsize=14, fontweight='bold')
 
-# Distribuição de Lucro: Aceitos vs Rejeitados
-ax4 = axes[1, 1]
-ax4.hist(y_test_lucro[aceitar_otimizado], bins=50, alpha=0.7, label='Aceitos', color='green')
-ax4.hist(y_test_lucro[~aceitar_otimizado], bins=50, alpha=0.7, label='Rejeitados', color='red')
-ax4.axvline(0, color='black', linestyle='--', linewidth=2, label='Break-even')
-ax4.set_xlabel('Lucro Real', fontsize=12)
-ax4.set_ylabel('Frequência', fontsize=12)
-ax4.set_title('Distribuição de Lucro: Aceitos vs Rejeitados', fontsize=14, fontweight='bold')
+# % Pago: Real vs Previsto
+ax4 = axes[1, 0]
+ax4.scatter(y_pred_perc_test, y_test_perc, alpha=0.5, s=10)
+ax4.plot([0, 1], [0, 1], 'r--', linewidth=2, label='Perfeito')
+ax4.set_xlabel('% Pago Previsto', fontsize=12)
+ax4.set_ylabel('% Pago Real', fontsize=12)
+ax4.set_title(f'% Pago: Real vs Previsto (R²={r2_score(y_test_perc, y_pred_perc_test):.3f})', fontsize=14, fontweight='bold')
 ax4.legend()
 ax4.grid(alpha=0.3)
+
+# Distribuição de Lucro: Aceitos vs Rejeitados
+ax5 = axes[1, 1]
+ax5.hist(y_test_lucro[aceitar_otimizado], bins=50, alpha=0.7, label='Aceitos', color='green')
+ax5.hist(y_test_lucro[~aceitar_otimizado], bins=50, alpha=0.7, label='Rejeitados', color='red')
+ax5.axvline(0, color='black', linestyle='--', linewidth=2, label='Break-even')
+ax5.set_xlabel('Lucro Real', fontsize=12)
+ax5.set_ylabel('Frequência', fontsize=12)
+ax5.set_title('Distribuição de Lucro: Aceitos vs Rejeitados', fontsize=14, fontweight='bold')
+ax5.legend()
+ax5.grid(alpha=0.3)
+
+# Distribuição de Decisões (Pie Chart)
+ax6 = axes[1, 2]
+decisoes = ['Aceitos', 'Rejeitados']
+contagens = [aceitar_otimizado.sum(), (~aceitar_otimizado).sum()]
+cores_decisoes = ['green', 'red']
+wedges, texts, autotexts = ax6.pie(contagens, labels=decisoes, autopct='%1.1f%%',
+                                     colors=cores_decisoes, startangle=90, 
+                                     textprops={'fontsize': 12, 'fontweight': 'bold'})
+ax6.set_title('Distribuição de Decisões', fontsize=14, fontweight='bold')
 
 plt.tight_layout()
 plt.savefig('../graficos/LUCRO_OTIMIZADO/analise_completa.png', dpi=300, bbox_inches='tight')
