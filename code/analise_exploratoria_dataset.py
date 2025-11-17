@@ -491,6 +491,185 @@ print("\nTop 5 Profissões por Contratos:")
 for i, (prof, count) in enumerate(top_prof.head().items(), 1):
     print(f"  {i}. {prof[:50]}: {count:,} contratos")
 
+# ========== 7.5. ANÁLISE INADIMPLENTES POR TIPO (% NORMALIZADO) ==========
+print("\n" + "="*80)
+print("🔍 ANÁLISE DE INADIMPLENTES POR TIPO - % NORMALIZADO (Profissões, Cidades e UF)")
+print("="*80)
+
+fig, axes = plt.subplots(3, 2, figsize=(20, 20))
+
+# Calcular totais por profissão, cidade e UF
+total_por_prof = df_clean.groupby('descricao_da_Profissao').size()
+total_por_cidade = df_clean.groupby('Cidade_Loja').size()
+total_por_uf = df_clean.groupby('uf').size()
+
+# 7.5.1 Top 15 Profissões com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[0, 0]
+prof_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('descricao_da_Profissao').size()
+prof_inad_zero_pct = (prof_inad_zero_count / total_por_prof * 100).reset_index(name='percentual')
+# Filtrar profissões com pelo menos 50 contratos para ter significância estatística
+prof_com_volume = total_por_prof[total_por_prof >= 50].index
+prof_inad_zero_pct = prof_inad_zero_pct[prof_inad_zero_pct['descricao_da_Profissao'].isin(prof_com_volume)]
+prof_inad_zero_pct = prof_inad_zero_pct.nlargest(15, 'percentual')
+ax.barh(range(len(prof_inad_zero_pct)), prof_inad_zero_pct['percentual'].values, color='darkred', edgecolor='black')
+ax.set_yticks(range(len(prof_inad_zero_pct)))
+ax.set_yticklabels([p[:30] + '...' if len(p) > 30 else p for p in prof_inad_zero_pct['descricao_da_Profissao'].values])
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Top 15 Profissões - Maior % Inadimplentes Totais (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+# Adicionar valores percentuais
+for i, (idx, row) in enumerate(prof_inad_zero_pct.iterrows()):
+    prof = row['descricao_da_Profissao']
+    pct = row['percentual']
+    total = total_por_prof[prof]
+    ax.text(pct, i, f' {pct:.1f}% ({int(prof_inad_zero_count[prof])}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.5.2 Top 15 Profissões com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[0, 1]
+prof_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('descricao_da_Profissao').size()
+prof_inad_lucro_pct = (prof_inad_lucro_count / total_por_prof * 100).reset_index(name='percentual')
+prof_inad_lucro_pct = prof_inad_lucro_pct[prof_inad_lucro_pct['descricao_da_Profissao'].isin(prof_com_volume)]
+prof_inad_lucro_pct = prof_inad_lucro_pct.nlargest(15, 'percentual')
+ax.barh(range(len(prof_inad_lucro_pct)), prof_inad_lucro_pct['percentual'].values, color='darkorange', edgecolor='black')
+ax.set_yticks(range(len(prof_inad_lucro_pct)))
+ax.set_yticklabels([p[:30] + '...' if len(p) > 30 else p for p in prof_inad_lucro_pct['descricao_da_Profissao'].values])
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('Top 15 Profissões - Maior % Inadimplentes Lucrativos (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+# Adicionar valores percentuais
+for i, (idx, row) in enumerate(prof_inad_lucro_pct.iterrows()):
+    prof = row['descricao_da_Profissao']
+    pct = row['percentual']
+    total = total_por_prof[prof]
+    ax.text(pct, i, f' {pct:.1f}% ({int(prof_inad_lucro_count[prof])}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.5.3 Top 15 Cidades com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[1, 0]
+cidade_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('Cidade_Loja').size()
+cidade_inad_zero_pct = (cidade_inad_zero_count / total_por_cidade * 100).reset_index(name='percentual')
+# Filtrar cidades com pelo menos 100 contratos para ter significância estatística
+cidade_com_volume = total_por_cidade[total_por_cidade >= 100].index
+cidade_inad_zero_pct = cidade_inad_zero_pct[cidade_inad_zero_pct['Cidade_Loja'].isin(cidade_com_volume)]
+cidade_inad_zero_pct = cidade_inad_zero_pct.nlargest(15, 'percentual')
+ax.barh(range(len(cidade_inad_zero_pct)), cidade_inad_zero_pct['percentual'].values, color='crimson', edgecolor='black')
+ax.set_yticks(range(len(cidade_inad_zero_pct)))
+ax.set_yticklabels(cidade_inad_zero_pct['Cidade_Loja'].values)
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Top 15 Cidades - Maior % Inadimplentes Totais (≥100 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+# Adicionar valores percentuais
+for i, (idx, row) in enumerate(cidade_inad_zero_pct.iterrows()):
+    cidade = row['Cidade_Loja']
+    pct = row['percentual']
+    total = total_por_cidade[cidade]
+    ax.text(pct, i, f' {pct:.1f}% ({int(cidade_inad_zero_count[cidade])}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.5.4 Top 15 Cidades com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[1, 1]
+cidade_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('Cidade_Loja').size()
+cidade_inad_lucro_pct = (cidade_inad_lucro_count / total_por_cidade * 100).reset_index(name='percentual')
+cidade_inad_lucro_pct = cidade_inad_lucro_pct[cidade_inad_lucro_pct['Cidade_Loja'].isin(cidade_com_volume)]
+cidade_inad_lucro_pct = cidade_inad_lucro_pct.nlargest(15, 'percentual')
+ax.barh(range(len(cidade_inad_lucro_pct)), cidade_inad_lucro_pct['percentual'].values, color='gold', edgecolor='black')
+ax.set_yticks(range(len(cidade_inad_lucro_pct)))
+ax.set_yticklabels(cidade_inad_lucro_pct['Cidade_Loja'].values)
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('Top 15 Cidades - Maior % Inadimplentes Lucrativos (≥100 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+# Adicionar valores percentuais
+for i, (idx, row) in enumerate(cidade_inad_lucro_pct.iterrows()):
+    cidade = row['Cidade_Loja']
+    pct = row['percentual']
+    total = total_por_cidade[cidade]
+    ax.text(pct, i, f' {pct:.1f}% ({int(cidade_inad_lucro_count[cidade])}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.5.5 UFs com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[2, 0]
+uf_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('uf').size()
+uf_inad_zero_pct = (uf_inad_zero_count / total_por_uf * 100).reset_index(name='percentual')
+# Filtrar UFs com pelo menos 200 contratos para ter significância estatística
+uf_com_volume = total_por_uf[total_por_uf >= 200].index
+uf_inad_zero_pct = uf_inad_zero_pct[uf_inad_zero_pct['uf'].isin(uf_com_volume)]
+uf_inad_zero_pct = uf_inad_zero_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(uf_inad_zero_pct)), uf_inad_zero_pct['percentual'].values, color='darkred', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(uf_inad_zero_pct)))
+ax.set_yticklabels(uf_inad_zero_pct['uf'].values)
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('UFs - Maior % Inadimplentes Totais (≥200 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+# Adicionar valores percentuais
+for i, (idx, row) in enumerate(uf_inad_zero_pct.iterrows()):
+    uf = row['uf']
+    pct = row['percentual']
+    total = total_por_uf[uf]
+    ax.text(pct, i, f' {pct:.1f}% ({int(uf_inad_zero_count[uf])}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+# 7.5.6 UFs com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[2, 1]
+uf_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('uf').size()
+uf_inad_lucro_pct = (uf_inad_lucro_count / total_por_uf * 100).reset_index(name='percentual')
+uf_inad_lucro_pct = uf_inad_lucro_pct[uf_inad_lucro_pct['uf'].isin(uf_com_volume)]
+uf_inad_lucro_pct = uf_inad_lucro_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(uf_inad_lucro_pct)), uf_inad_lucro_pct['percentual'].values, color='darkorange', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(uf_inad_lucro_pct)))
+ax.set_yticklabels(uf_inad_lucro_pct['uf'].values)
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('UFs - Maior % Inadimplentes Lucrativos (≥200 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+# Adicionar valores percentuais
+for i, (idx, row) in enumerate(uf_inad_lucro_pct.iterrows()):
+    uf = row['uf']
+    pct = row['percentual']
+    total = total_por_uf[uf]
+    ax.text(pct, i, f' {pct:.1f}% ({int(uf_inad_lucro_count[uf])}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / 'analise_inadimplentes_2.png', dpi=300, bbox_inches='tight')
+print("✓ Salvo: analise_inadimplentes_2.png")
+plt.close()
+
+# Estatísticas sobre esses grupos
+print("\n📊 Estatísticas - Inadimplentes por Tipo (% Normalizado):")
+print(f"\nProfissões (com ≥50 contratos):")
+if len(prof_inad_zero_pct) > 0:
+    top_prof_zero = prof_inad_zero_pct.iloc[0]
+    prof_name = top_prof_zero['descricao_da_Profissao']
+    print(f"  Top profissão com Inadimpl. Totais (0%): {prof_name[:50]}")
+    print(f"    - {top_prof_zero['percentual']:.1f}% ({int(prof_inad_zero_count[prof_name])}/{int(total_por_prof[prof_name])} contratos)")
+if len(prof_inad_lucro_pct) > 0:
+    top_prof_lucro = prof_inad_lucro_pct.iloc[0]
+    prof_name = top_prof_lucro['descricao_da_Profissao']
+    print(f"  Top profissão com Inadimpl. Lucrativos: {prof_name[:50]}")
+    print(f"    - {top_prof_lucro['percentual']:.1f}% ({int(prof_inad_lucro_count[prof_name])}/{int(total_por_prof[prof_name])} contratos)")
+print(f"\nCidades (com ≥100 contratos):")
+if len(cidade_inad_zero_pct) > 0:
+    top_cidade_zero = cidade_inad_zero_pct.iloc[0]
+    cidade_name = top_cidade_zero['Cidade_Loja']
+    print(f"  Top cidade com Inadimpl. Totais (0%): {cidade_name}")
+    print(f"    - {top_cidade_zero['percentual']:.1f}% ({int(cidade_inad_zero_count[cidade_name])}/{int(total_por_cidade[cidade_name])} contratos)")
+if len(cidade_inad_lucro_pct) > 0:
+    top_cidade_lucro = cidade_inad_lucro_pct.iloc[0]
+    cidade_name = top_cidade_lucro['Cidade_Loja']
+    print(f"  Top cidade com Inadimpl. Lucrativos: {cidade_name}")
+    print(f"    - {top_cidade_lucro['percentual']:.1f}% ({int(cidade_inad_lucro_count[cidade_name])}/{int(total_por_cidade[cidade_name])} contratos)")
+print(f"\nUFs (com ≥200 contratos):")
+if len(uf_inad_zero_pct) > 0:
+    top_uf_zero = uf_inad_zero_pct.iloc[0]
+    uf_name = top_uf_zero['uf']
+    print(f"  Top UF com Inadimpl. Totais (0%): {uf_name}")
+    print(f"    - {top_uf_zero['percentual']:.1f}% ({int(uf_inad_zero_count[uf_name])}/{int(total_por_uf[uf_name])} contratos)")
+if len(uf_inad_lucro_pct) > 0:
+    top_uf_lucro = uf_inad_lucro_pct.iloc[0]
+    uf_name = top_uf_lucro['uf']
+    print(f"  Top UF com Inadimpl. Lucrativos: {uf_name}")
+    print(f"    - {top_uf_lucro['percentual']:.1f}% ({int(uf_inad_lucro_count[uf_name])}/{int(total_por_uf[uf_name])} contratos)")
+
 # ========== 8. ANÁLISE PARCELAS vs INADIMPLÊNCIA ==========
 print("\n" + "="*80)
 print("📅 ANÁLISE NÚMERO DE PARCELAS vs INADIMPLÊNCIA")
