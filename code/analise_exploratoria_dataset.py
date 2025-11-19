@@ -670,6 +670,498 @@ if len(uf_inad_lucro_pct) > 0:
     print(f"  Top UF com Inadimpl. Lucrativos: {uf_name}")
     print(f"    - {top_uf_lucro['percentual']:.1f}% ({int(uf_inad_lucro_count[uf_name])}/{int(total_por_uf[uf_name])} contratos)")
 
+# ========== 7.6. ANÁLISE INADIMPLENTES POR MERCADORIA, IDADE E SCORE (% NORMALIZADO) ==========
+print("\n" + "="*80)
+print("🔍 ANÁLISE DE INADIMPLENTES - % NORMALIZADO (Mercadoria, Idade e Score SPC)")
+print("="*80)
+
+# Criar faixas de idade e score
+df_clean['faixa_idade'] = pd.cut(df_clean['idade'], 
+                                  bins=[0, 25, 39, 50, 100], 
+                                  labels=['18-25', '26-39', '40-50', '51+'])
+
+df_clean['faixa_score'] = pd.cut(df_clean['score_SPC'], 
+                                  bins=[0, 500, 600, 700, 800, 1000], 
+                                  labels=['<500', '500-600', '600-700', '700-800', '800+'])
+
+fig, axes = plt.subplots(3, 2, figsize=(22, 24))
+
+# Calcular totais por mercadoria, faixa de idade e faixa de score
+total_por_mercadoria = df_clean.groupby('Mercadoria').size()
+total_por_faixa_idade = df_clean.groupby('faixa_idade').size()
+total_por_faixa_score = df_clean.groupby('faixa_score').size()
+
+# 7.6.1 Mercadorias com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[0, 0]
+merc_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('Mercadoria').size()
+merc_inad_zero_pct = (merc_inad_zero_count / total_por_mercadoria * 100).reset_index(name='percentual')
+# Filtrar mercadorias com pelo menos 50 contratos e mostrar top 12
+merc_com_volume = total_por_mercadoria[total_por_mercadoria >= 50].index
+merc_inad_zero_pct = merc_inad_zero_pct[merc_inad_zero_pct['Mercadoria'].isin(merc_com_volume)]
+merc_inad_zero_pct = merc_inad_zero_pct.sort_values('percentual', ascending=False).head(12)
+ax.barh(range(len(merc_inad_zero_pct)), merc_inad_zero_pct['percentual'].values, 
+        color='darkred', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(merc_inad_zero_pct)))
+ax.set_yticklabels([m[:40] + '...' if len(m) > 40 else m for m in merc_inad_zero_pct['Mercadoria'].values], 
+                    fontsize=9)
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Top 12 Mercadorias - Maior % Inadimplentes Totais (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(merc_inad_zero_pct.iterrows()):
+    merc = row['Mercadoria']
+    pct = row['percentual']
+    total = total_por_mercadoria[merc]
+    count = merc_inad_zero_count.get(merc, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.6.2 Mercadorias com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[0, 1]
+merc_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('Mercadoria').size()
+merc_inad_lucro_pct = (merc_inad_lucro_count / total_por_mercadoria * 100).reset_index(name='percentual')
+merc_inad_lucro_pct = merc_inad_lucro_pct[merc_inad_lucro_pct['Mercadoria'].isin(merc_com_volume)]
+merc_inad_lucro_pct = merc_inad_lucro_pct.sort_values('percentual', ascending=False).head(12)
+ax.barh(range(len(merc_inad_lucro_pct)), merc_inad_lucro_pct['percentual'].values, 
+        color='darkorange', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(merc_inad_lucro_pct)))
+ax.set_yticklabels([m[:40] + '...' if len(m) > 40 else m for m in merc_inad_lucro_pct['Mercadoria'].values], 
+                    fontsize=9)
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('Top 12 Mercadorias - Maior % Inadimplentes Lucrativos (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(merc_inad_lucro_pct.iterrows()):
+    merc = row['Mercadoria']
+    pct = row['percentual']
+    total = total_por_mercadoria[merc]
+    count = merc_inad_lucro_count.get(merc, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.6.3 Faixas de Idade com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[1, 0]
+idade_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('faixa_idade').size()
+idade_inad_zero_pct = (idade_inad_zero_count / total_por_faixa_idade * 100).reset_index(name='percentual')
+idade_inad_zero_pct = idade_inad_zero_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(idade_inad_zero_pct)), idade_inad_zero_pct['percentual'].values, color='crimson', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(idade_inad_zero_pct)))
+ax.set_yticklabels(idade_inad_zero_pct['faixa_idade'].values)
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Faixas de Idade - % Inadimplentes Totais', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(idade_inad_zero_pct.iterrows()):
+    faixa = row['faixa_idade']
+    pct = row['percentual']
+    total = total_por_faixa_idade[faixa]
+    count = idade_inad_zero_count.get(faixa, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+# 7.6.4 Faixas de Idade com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[1, 1]
+idade_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('faixa_idade').size()
+idade_inad_lucro_pct = (idade_inad_lucro_count / total_por_faixa_idade * 100).reset_index(name='percentual')
+idade_inad_lucro_pct = idade_inad_lucro_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(idade_inad_lucro_pct)), idade_inad_lucro_pct['percentual'].values, color='gold', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(idade_inad_lucro_pct)))
+ax.set_yticklabels(idade_inad_lucro_pct['faixa_idade'].values)
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('Faixas de Idade - % Inadimplentes Lucrativos', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(idade_inad_lucro_pct.iterrows()):
+    faixa = row['faixa_idade']
+    pct = row['percentual']
+    total = total_por_faixa_idade[faixa]
+    count = idade_inad_lucro_count.get(faixa, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+# 7.6.5 Faixas de Score SPC com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[2, 0]
+score_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('faixa_score').size()
+score_inad_zero_pct = (score_inad_zero_count / total_por_faixa_score * 100).reset_index(name='percentual')
+score_inad_zero_pct = score_inad_zero_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(score_inad_zero_pct)), score_inad_zero_pct['percentual'].values, color='darkred', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(score_inad_zero_pct)))
+ax.set_yticklabels(score_inad_zero_pct['faixa_score'].values)
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Faixas de Score SPC - % Inadimplentes Totais', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(score_inad_zero_pct.iterrows()):
+    faixa = row['faixa_score']
+    pct = row['percentual']
+    total = total_por_faixa_score[faixa]
+    count = score_inad_zero_count.get(faixa, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+# 7.6.6 Faixas de Score SPC com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[2, 1]
+score_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('faixa_score').size()
+score_inad_lucro_pct = (score_inad_lucro_count / total_por_faixa_score * 100).reset_index(name='percentual')
+score_inad_lucro_pct = score_inad_lucro_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(score_inad_lucro_pct)), score_inad_lucro_pct['percentual'].values, color='darkorange', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(score_inad_lucro_pct)))
+ax.set_yticklabels(score_inad_lucro_pct['faixa_score'].values)
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('Faixas de Score SPC - % Inadimplentes Lucrativos', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(score_inad_lucro_pct.iterrows()):
+    faixa = row['faixa_score']
+    pct = row['percentual']
+    total = total_por_faixa_score[faixa]
+    count = score_inad_lucro_count.get(faixa, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / 'analise_inadimplentes_3.png', dpi=300, bbox_inches='tight')
+print("✓ Salvo: analise_inadimplentes_3.png")
+plt.close()
+
+# Estatísticas sobre esses grupos
+print("\n📊 Estatísticas - Inadimplentes por Mercadoria, Idade e Score (% Normalizado):")
+print(f"\nMercadorias (com ≥50 contratos):")
+if len(merc_inad_zero_pct) > 0:
+    top_merc_zero = merc_inad_zero_pct.iloc[0]
+    merc_name = top_merc_zero['Mercadoria']
+    count = merc_inad_zero_count.get(merc_name, 0)
+    print(f"  Top mercadoria com Inadimpl. Totais (0%): {merc_name[:50]}")
+    print(f"    - {top_merc_zero['percentual']:.1f}% ({int(count)}/{int(total_por_mercadoria[merc_name])} contratos)")
+if len(merc_inad_lucro_pct) > 0:
+    top_merc_lucro = merc_inad_lucro_pct.iloc[0]
+    merc_name = top_merc_lucro['Mercadoria']
+    count = merc_inad_lucro_count.get(merc_name, 0)
+    print(f"  Top mercadoria com Inadimpl. Lucrativos: {merc_name[:50]}")
+    print(f"    - {top_merc_lucro['percentual']:.1f}% ({int(count)}/{int(total_por_mercadoria[merc_name])} contratos)")
+
+print(f"\nFaixas de Idade:")
+if len(idade_inad_zero_pct) > 0:
+    top_idade_zero = idade_inad_zero_pct.iloc[0]
+    idade_faixa = top_idade_zero['faixa_idade']
+    count = idade_inad_zero_count.get(idade_faixa, 0)
+    print(f"  Faixa com maior % Inadimpl. Totais (0%): {idade_faixa}")
+    print(f"    - {top_idade_zero['percentual']:.1f}% ({int(count)}/{int(total_por_faixa_idade[idade_faixa])} contratos)")
+if len(idade_inad_lucro_pct) > 0:
+    top_idade_lucro = idade_inad_lucro_pct.iloc[0]
+    idade_faixa = top_idade_lucro['faixa_idade']
+    count = idade_inad_lucro_count.get(idade_faixa, 0)
+    print(f"  Faixa com maior % Inadimpl. Lucrativos: {idade_faixa}")
+    print(f"    - {top_idade_lucro['percentual']:.1f}% ({int(count)}/{int(total_por_faixa_idade[idade_faixa])} contratos)")
+
+print(f"\nFaixas de Score SPC:")
+if len(score_inad_zero_pct) > 0:
+    top_score_zero = score_inad_zero_pct.iloc[0]
+    score_faixa = top_score_zero['faixa_score']
+    count = score_inad_zero_count.get(score_faixa, 0)
+    print(f"  Faixa com maior % Inadimpl. Totais (0%): {score_faixa}")
+    print(f"    - {top_score_zero['percentual']:.1f}% ({int(count)}/{int(total_por_faixa_score[score_faixa])} contratos)")
+if len(score_inad_lucro_pct) > 0:
+    top_score_lucro = score_inad_lucro_pct.iloc[0]
+    score_faixa = top_score_lucro['faixa_score']
+    count = score_inad_lucro_count.get(score_faixa, 0)
+    print(f"  Faixa com maior % Inadimpl. Lucrativos: {score_faixa}")
+    print(f"    - {top_score_lucro['percentual']:.1f}% ({int(count)}/{int(total_por_faixa_score[score_faixa])} contratos)")
+
+# ========== 7.7. ANÁLISE INADIMPLENTES POR CATEGORIAS (% NORMALIZADO) ==========
+print("\n" + "="*80)
+print("🔍 ANÁLISE DE INADIMPLENTES - % NORMALIZADO (Categorias de Produto e Profissão)")
+print("="*80)
+
+fig, axes = plt.subplots(2, 2, figsize=(22, 16))
+
+# Calcular totais por categoria de produto e categoria de profissão
+total_por_cat_produto = df_clean.groupby('categorias').size()
+total_por_cat_profissao = df_clean.groupby('categorias_da_Profissao').size()
+
+# 7.7.1 Categorias de Produto com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[0, 0]
+cat_prod_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('categorias').size()
+cat_prod_inad_zero_pct = (cat_prod_inad_zero_count / total_por_cat_produto * 100).reset_index(name='percentual')
+# Filtrar categorias com pelo menos 50 contratos
+cat_prod_com_volume = total_por_cat_produto[total_por_cat_produto >= 50].index
+cat_prod_inad_zero_pct = cat_prod_inad_zero_pct[cat_prod_inad_zero_pct['categorias'].isin(cat_prod_com_volume)]
+cat_prod_inad_zero_pct = cat_prod_inad_zero_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(cat_prod_inad_zero_pct)), cat_prod_inad_zero_pct['percentual'].values, 
+        color='darkred', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(cat_prod_inad_zero_pct)))
+ax.set_yticklabels([c[:40] + '...' if len(str(c)) > 40 else c for c in cat_prod_inad_zero_pct['categorias'].values], fontsize=9)
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Categorias de Produto - % Inadimplentes Totais (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(cat_prod_inad_zero_pct.iterrows()):
+    cat = row['categorias']
+    pct = row['percentual']
+    total = total_por_cat_produto[cat]
+    count = cat_prod_inad_zero_count.get(cat, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.7.2 Categorias de Produto com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[0, 1]
+cat_prod_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('categorias').size()
+cat_prod_inad_lucro_pct = (cat_prod_inad_lucro_count / total_por_cat_produto * 100).reset_index(name='percentual')
+cat_prod_inad_lucro_pct = cat_prod_inad_lucro_pct[cat_prod_inad_lucro_pct['categorias'].isin(cat_prod_com_volume)]
+cat_prod_inad_lucro_pct = cat_prod_inad_lucro_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(cat_prod_inad_lucro_pct)), cat_prod_inad_lucro_pct['percentual'].values, 
+        color='darkorange', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(cat_prod_inad_lucro_pct)))
+ax.set_yticklabels([c[:40] + '...' if len(str(c)) > 40 else c for c in cat_prod_inad_lucro_pct['categorias'].values], fontsize=9)
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('Categorias de Produto - % Inadimplentes Lucrativos (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(cat_prod_inad_lucro_pct.iterrows()):
+    cat = row['categorias']
+    pct = row['percentual']
+    total = total_por_cat_produto[cat]
+    count = cat_prod_inad_lucro_count.get(cat, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.7.3 Categorias de Profissão com Maior % de Inadimplentes Totais (0% pago)
+ax = axes[1, 0]
+cat_prof_inad_zero_count = df_clean[df_clean['pago_perc'] == 0].groupby('categorias_da_Profissao').size()
+cat_prof_inad_zero_pct = (cat_prof_inad_zero_count / total_por_cat_profissao * 100).reset_index(name='percentual')
+# Filtrar categorias com pelo menos 100 contratos
+cat_prof_com_volume = total_por_cat_profissao[total_por_cat_profissao >= 100].index
+cat_prof_inad_zero_pct = cat_prof_inad_zero_pct[cat_prof_inad_zero_pct['categorias_da_Profissao'].isin(cat_prof_com_volume)]
+cat_prof_inad_zero_pct = cat_prof_inad_zero_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(cat_prof_inad_zero_pct)), cat_prof_inad_zero_pct['percentual'].values, 
+        color='crimson', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(cat_prof_inad_zero_pct)))
+ax.set_yticklabels([c[:40] + '...' if len(str(c)) > 40 else c for c in cat_prof_inad_zero_pct['categorias_da_Profissao'].values], fontsize=9)
+ax.set_xlabel('% de Inadimplentes (0% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Categorias de Profissão - % Inadimplentes Totais (≥100 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(cat_prof_inad_zero_pct.iterrows()):
+    cat = row['categorias_da_Profissao']
+    pct = row['percentual']
+    total = total_por_cat_profissao[cat]
+    count = cat_prof_inad_zero_count.get(cat, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+# 7.7.4 Categorias de Profissão com Maior % de Inadimplentes Lucrativos (<100% mas lucro>0)
+ax = axes[1, 1]
+cat_prof_inad_lucro_count = df_clean[(df_clean['pago_perc'] < 1) & (df_clean['lucro'] > 0)].groupby('categorias_da_Profissao').size()
+cat_prof_inad_lucro_pct = (cat_prof_inad_lucro_count / total_por_cat_profissao * 100).reset_index(name='percentual')
+cat_prof_inad_lucro_pct = cat_prof_inad_lucro_pct[cat_prof_inad_lucro_pct['categorias_da_Profissao'].isin(cat_prof_com_volume)]
+cat_prof_inad_lucro_pct = cat_prof_inad_lucro_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(cat_prof_inad_lucro_pct)), cat_prof_inad_lucro_pct['percentual'].values, 
+        color='gold', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(cat_prof_inad_lucro_pct)))
+ax.set_yticklabels([c[:40] + '...' if len(str(c)) > 40 else c for c in cat_prof_inad_lucro_pct['categorias_da_Profissao'].values], fontsize=9)
+ax.set_xlabel('% de Inadimplentes Lucrativos', fontsize=11, fontweight='bold')
+ax.set_title('Categorias de Profissão - % Inadimplentes Lucrativos (≥100 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(cat_prof_inad_lucro_pct.iterrows()):
+    cat = row['categorias_da_Profissao']
+    pct = row['percentual']
+    total = total_por_cat_profissao[cat]
+    count = cat_prof_inad_lucro_count.get(cat, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / 'analise_inadimplentes_4.png', dpi=300, bbox_inches='tight')
+print("✓ Salvo: analise_inadimplentes_4.png")
+plt.close()
+
+# Estatísticas sobre esses grupos
+print("\n📊 Estatísticas - Inadimplentes por Categorias (% Normalizado):")
+print(f"\nCategorias de Produto (com ≥50 contratos):")
+if len(cat_prod_inad_zero_pct) > 0:
+    top_cat_prod_zero = cat_prod_inad_zero_pct.iloc[0]
+    cat_name = top_cat_prod_zero['categorias']
+    count = cat_prod_inad_zero_count.get(cat_name, 0)
+    print(f"  Top categoria com Inadimpl. Totais (0%): {cat_name}")
+    print(f"    - {top_cat_prod_zero['percentual']:.1f}% ({int(count)}/{int(total_por_cat_produto[cat_name])} contratos)")
+if len(cat_prod_inad_lucro_pct) > 0:
+    top_cat_prod_lucro = cat_prod_inad_lucro_pct.iloc[0]
+    cat_name = top_cat_prod_lucro['categorias']
+    count = cat_prod_inad_lucro_count.get(cat_name, 0)
+    print(f"  Top categoria com Inadimpl. Lucrativos: {cat_name}")
+    print(f"    - {top_cat_prod_lucro['percentual']:.1f}% ({int(count)}/{int(total_por_cat_produto[cat_name])} contratos)")
+
+print(f"\nCategorias de Profissão (com ≥100 contratos):")
+if len(cat_prof_inad_zero_pct) > 0:
+    top_cat_prof_zero = cat_prof_inad_zero_pct.iloc[0]
+    cat_name = top_cat_prof_zero['categorias_da_Profissao']
+    count = cat_prof_inad_zero_count.get(cat_name, 0)
+    print(f"  Top categoria com Inadimpl. Totais (0%): {cat_name}")
+    print(f"    - {top_cat_prof_zero['percentual']:.1f}% ({int(count)}/{int(total_por_cat_profissao[cat_name])} contratos)")
+if len(cat_prof_inad_lucro_pct) > 0:
+    top_cat_prof_lucro = cat_prof_inad_lucro_pct.iloc[0]
+    cat_name = top_cat_prof_lucro['categorias_da_Profissao']
+    count = cat_prof_inad_lucro_count.get(cat_name, 0)
+    print(f"  Top categoria com Inadimpl. Lucrativos: {cat_name}")
+    print(f"    - {top_cat_prof_lucro['percentual']:.1f}% ({int(count)}/{int(total_por_cat_profissao[cat_name])} contratos)")
+
+# ========== 7.8. ANÁLISE ADIMPLENTES - UF E CIDADES ==========
+print("\n" + "="*80)
+print("🔍 ANÁLISE DE ADIMPLENTES (100% PAGO) - UF e Cidades")
+print("="*80)
+
+# Contar adimplentes
+adimplentes = df_clean[df_clean['pago_perc'] == 1]
+
+fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+
+# 7.8.1 Cidades com Maior % de Adimplentes
+ax = axes[0]
+cidade_adim_count = adimplentes.groupby('Cidade_Loja').size()
+cidade_adim_pct = (cidade_adim_count / total_por_cidade * 100).reset_index(name='percentual')
+cidade_adim_pct = cidade_adim_pct[cidade_adim_pct['Cidade_Loja'].isin(cidade_com_volume)]
+cidade_adim_pct = cidade_adim_pct.nlargest(15, 'percentual')
+ax.barh(range(len(cidade_adim_pct)), cidade_adim_pct['percentual'].values, color='seagreen', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(cidade_adim_pct)))
+ax.set_yticklabels(cidade_adim_pct['Cidade_Loja'].values, fontsize=9)
+ax.set_xlabel('% de Adimplentes (100% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Top 15 Cidades - Maior % Adimplentes (≥100 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(cidade_adim_pct.iterrows()):
+    cidade = row['Cidade_Loja']
+    pct = row['percentual']
+    total = total_por_cidade[cidade]
+    count = cidade_adim_count.get(cidade, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.8.2 UFs com Maior % de Adimplentes
+ax = axes[1]
+uf_adim_count = adimplentes.groupby('uf').size()
+uf_adim_pct = (uf_adim_count / total_por_uf * 100).reset_index(name='percentual')
+uf_adim_pct = uf_adim_pct[uf_adim_pct['uf'].isin(uf_com_volume)]
+uf_adim_pct = uf_adim_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(uf_adim_pct)), uf_adim_pct['percentual'].values, color='forestgreen', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(uf_adim_pct)))
+ax.set_yticklabels(uf_adim_pct['uf'].values, fontsize=10)
+ax.set_xlabel('% de Adimplentes (100% pago)', fontsize=11, fontweight='bold')
+ax.set_title('UFs - Maior % Adimplentes (≥200 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(uf_adim_pct.iterrows()):
+    uf = row['uf']
+    pct = row['percentual']
+    total = total_por_uf[uf]
+    count = uf_adim_count.get(uf, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=9, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / 'analise_adimplentes_geografia.png', dpi=300, bbox_inches='tight')
+print("✓ Salvo: analise_adimplentes_geografia.png")
+plt.close()
+
+# ========== 7.9. ANÁLISE ADIMPLENTES - PROFISSÕES ==========
+print("\n" + "="*80)
+print("🔍 ANÁLISE DE ADIMPLENTES (100% PAGO) - Profissões e Categorias")
+print("="*80)
+
+fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+
+# 7.9.1 Profissões com Maior % de Adimplentes
+ax = axes[0]
+prof_adim_count = adimplentes.groupby('descricao_da_Profissao').size()
+prof_adim_pct = (prof_adim_count / total_por_prof * 100).reset_index(name='percentual')
+prof_adim_pct = prof_adim_pct[prof_adim_pct['descricao_da_Profissao'].isin(prof_com_volume)]
+prof_adim_pct = prof_adim_pct.nlargest(15, 'percentual')
+ax.barh(range(len(prof_adim_pct)), prof_adim_pct['percentual'].values, color='darkgreen', edgecolor='black', alpha=0.8)
+ax.set_yticks(range(len(prof_adim_pct)))
+ax.set_yticklabels([p[:35] + '...' if len(p) > 35 else p for p in prof_adim_pct['descricao_da_Profissao'].values], fontsize=9)
+ax.set_xlabel('% de Adimplentes (100% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Top 15 Profissões - Maior % Adimplentes (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(prof_adim_pct.iterrows()):
+    prof = row['descricao_da_Profissao']
+    pct = row['percentual']
+    total = total_por_prof[prof]
+    count = prof_adim_count.get(prof, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.9.2 Categorias de Profissão com Maior % de Adimplentes
+ax = axes[1]
+cat_prof_adim_count = adimplentes.groupby('categorias_da_Profissao').size()
+cat_prof_adim_pct = (cat_prof_adim_count / total_por_cat_profissao * 100).reset_index(name='percentual')
+cat_prof_adim_pct = cat_prof_adim_pct[cat_prof_adim_pct['categorias_da_Profissao'].isin(cat_prof_com_volume)]
+cat_prof_adim_pct = cat_prof_adim_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(cat_prof_adim_pct)), cat_prof_adim_pct['percentual'].values, color='olivedrab', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(cat_prof_adim_pct)))
+ax.set_yticklabels([c[:40] + '...' if len(str(c)) > 40 else c for c in cat_prof_adim_pct['categorias_da_Profissao'].values], fontsize=9)
+ax.set_xlabel('% de Adimplentes (100% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Categorias de Profissão - % Adimplentes (≥100 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(cat_prof_adim_pct.iterrows()):
+    cat = row['categorias_da_Profissao']
+    pct = row['percentual']
+    total = total_por_cat_profissao[cat]
+    count = cat_prof_adim_count.get(cat, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / 'analise_adimplentes_profissoes.png', dpi=300, bbox_inches='tight')
+print("✓ Salvo: analise_adimplentes_profissoes.png")
+plt.close()
+
+# ========== 7.10. ANÁLISE ADIMPLENTES - PRODUTOS ==========
+print("\n" + "="*80)
+print("🔍 ANÁLISE DE ADIMPLENTES (100% PAGO) - Produtos e Mercadorias")
+print("="*80)
+
+fig, axes = plt.subplots(1, 2, figsize=(22, 10))
+
+# 7.10.1 Categorias de Produto com Maior % de Adimplentes
+ax = axes[0]
+cat_prod_adim_count = adimplentes.groupby('categorias').size()
+cat_prod_adim_pct = (cat_prod_adim_count / total_por_cat_produto * 100).reset_index(name='percentual')
+cat_prod_adim_pct = cat_prod_adim_pct[cat_prod_adim_pct['categorias'].isin(cat_prod_com_volume)]
+cat_prod_adim_pct = cat_prod_adim_pct.sort_values('percentual', ascending=False)
+ax.barh(range(len(cat_prod_adim_pct)), cat_prod_adim_pct['percentual'].values, color='darkseagreen', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(cat_prod_adim_pct)))
+ax.set_yticklabels([c[:40] + '...' if len(str(c)) > 40 else c for c in cat_prod_adim_pct['categorias'].values], fontsize=9)
+ax.set_xlabel('% de Adimplentes (100% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Categorias de Produto - % Adimplentes (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(cat_prod_adim_pct.iterrows()):
+    cat = row['categorias']
+    pct = row['percentual']
+    total = total_por_cat_produto[cat]
+    count = cat_prod_adim_count.get(cat, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+# 7.10.2 Mercadorias com Maior % de Adimplentes
+ax = axes[1]
+merc_adim_count = adimplentes.groupby('Mercadoria').size()
+merc_adim_pct = (merc_adim_count / total_por_mercadoria * 100).reset_index(name='percentual')
+merc_adim_pct = merc_adim_pct[merc_adim_pct['Mercadoria'].isin(merc_com_volume)]
+merc_adim_pct = merc_adim_pct.sort_values('percentual', ascending=False).head(15)
+ax.barh(range(len(merc_adim_pct)), merc_adim_pct['percentual'].values, color='mediumseagreen', edgecolor='black', alpha=0.8, height=0.7)
+ax.set_yticks(range(len(merc_adim_pct)))
+ax.set_yticklabels([m[:40] + '...' if len(m) > 40 else m for m in merc_adim_pct['Mercadoria'].values], fontsize=9)
+ax.set_xlabel('% de Adimplentes (100% pago)', fontsize=11, fontweight='bold')
+ax.set_title('Top 15 Mercadorias - Maior % Adimplentes (≥50 contratos)', fontsize=12, fontweight='bold')
+ax.grid(True, alpha=0.3, axis='x')
+ax.invert_yaxis()
+for i, (idx, row) in enumerate(merc_adim_pct.iterrows()):
+    merc = row['Mercadoria']
+    pct = row['percentual']
+    total = total_por_mercadoria[merc]
+    count = merc_adim_count.get(merc, 0)
+    ax.text(pct, i, f' {pct:.1f}% ({int(count)}/{int(total)})', va='center', fontsize=8, fontweight='bold')
+
+plt.tight_layout()
+plt.savefig(OUTPUT_DIR / 'analise_adimplentes_produtos.png', dpi=300, bbox_inches='tight')
+print("✓ Salvo: analise_adimplentes_produtos.png")
+plt.close()
+
+print(f"\n📊 Total de Adimplentes: {len(adimplentes):,} ({len(adimplentes)/len(df_clean)*100:.2f}%)")
+
+# ========== 8. ANÁLISE PARCELAS vs INADIMPLÊNCIA ==========
+print("\n" + "="*80)
+print("� ANÁLISE NÚMERO DE PARCELAS vs INADIMPLÊNCIA")
+print("="*80)
+
 # ========== 8. ANÁLISE PARCELAS vs INADIMPLÊNCIA ==========
 print("\n" + "="*80)
 print("📅 ANÁLISE NÚMERO DE PARCELAS vs INADIMPLÊNCIA")

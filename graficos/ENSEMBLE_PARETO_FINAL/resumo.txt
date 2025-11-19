@@ -6,29 +6,139 @@ Total de Contratos: 9,241
 Split: 80/20
 
 --- DESEMPENHO DOS MODELOS BASE ---
-NN:   MAE = R$ 661.55, R² = 0.0421
-LGBM: MAE = R$ 608.66, R² = 0.0869
-XGB:  MAE = R$ 607.01, R² = 0.0920
-META: MAE = R$ 617.93, R² = -0.0395
+NN:   MAE = R$ 595.49, R² = -0.0950
+LGBM: MAE = R$ 603.64, R² = 0.0952
+XGB:  MAE = R$ 606.08, R² = 0.1037
+META: MAE = R$ 615.36, R² = 0.1048
 
 --- RESULTADOS FINAIS ---
 Baseline:          R$ 2,427,238.31
 Máximo Teórico:    R$ 4,781,073.51
-ENSEMBLE+PARETO:   R$ 2,576,824.24
+ENSEMBLE+PARETO:   R$ 2,627,724.18
 
-Ganho vs Baseline: R$ +149,585.93 (+6.16%)
+Ganho vs Baseline: R$ +200,485.87 (+8.26%)
 
 --- PARETO FRONTIER ---
 Soluções Ótimas: 5
-Threshold Selecionado: R$ -83.50
-FDR (Taxa Inadimplência): 23.31%
-Taxa de Aprovação: 86.0%
+Threshold Selecionado: R$ 58.94
+FDR (Taxa Inadimplência): 23.41%
+Taxa de Aprovação: 87.3%
 
 --- MATRIZ DE CONFUSÃO ---
-True Negatives (Adimplente Aceito):     6,096
-False Positives (Adimplente Rejeitado): 659
-False Negatives (Inadimplente Aceito):  1,853
-True Positives (Inadimplente Rejeitado):633
-Precision (Precisão): 48.99%
-Recall (Sensibilidade): 25.46%
-F1-Score: 33.51%
+True Negatives (Adimplente Aceito):     6,178
+False Positives (Adimplente Rejeitado): 577
+False Negatives (Inadimplente Aceito):  1,888
+True Positives (Inadimplente Rejeitado):598
+Precision (Precisão): 50.89%
+Recall (Sensibilidade): 24.05%
+F1-Score: 32.67%
+
+--- ANÁLISE DOS EMBEDDINGS ---
+Dimensão dos Embeddings: 64
+
+Top 5 Dimensões - ADIMPLENTES:
+  1. Dim 23: valor=+21.3674, desvio=2.3937
+  2. Dim 30: valor=+19.4936, desvio=2.1852
+  3. Dim  0: valor=+20.0441, desvio=2.1743
+  4. Dim 49: valor=+19.9717, desvio=2.1696
+  5. Dim 17: valor=+19.5003, desvio=2.1653
+
+Top 5 Dimensões - INADIMPLENTES TOTAIS:
+  1. Dim 23: valor=+25.6755, desvio=1.9144
+  2. Dim 17: valor=+23.5478, desvio=1.8822
+  3. Dim  7: valor=+23.3722, desvio=1.8187
+  4. Dim 30: valor=+23.4070, desvio=1.7282
+  5. Dim  0: valor=+23.9438, desvio=1.7253
+
+Top 5 Dimensões - INADIMPLENTES LUCRATIVOS:
+  1. Dim 23: valor=+39.6974, desvio=15.9363
+  2. Dim 30: valor=+36.3414, desvio=14.6626
+  3. Dim  0: valor=+36.7144, desvio=14.4959
+  4. Dim 49: valor=+36.5754, desvio=14.4341
+  5. Dim 33: valor=+35.0417, desvio=14.1675
+
+Dimensões Exclusivas (melhor discriminação):
+  Adimplentes: Nenhuma
+  Inadimplentes Totais: [np.int64(7)]
+  Inadimplentes Lucrativos: [np.int64(33)]
+
+--- MAPEAMENTO: DIMENSÕES → FEATURES ORIGINAIS ---
+
+ADIMPLENTES - Top Dimensões:
+  Dimensão 23:
+    • valor_financiado: +0.737
+    • plano_financiamento: +0.599
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 30:
+    • valor_financiado: +0.734
+    • plano_financiamento: +0.596
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 0:
+    • valor_financiado: +0.736
+    • plano_financiamento: +0.597
+    • valor_inicial_da_prestacao: +0.412
+
+  Dimensão 49:
+    • valor_financiado: +0.736
+    • plano_financiamento: +0.600
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 17:
+    • valor_financiado: +0.741
+    • plano_financiamento: +0.607
+    • valor_inicial_da_prestacao: +0.409
+
+INADIMPLENTES TOTAIS - Top Dimensões:
+  Dimensão 23:
+    • valor_financiado: +0.737
+    • plano_financiamento: +0.599
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 17:
+    • valor_financiado: +0.741
+    • plano_financiamento: +0.607
+    • valor_inicial_da_prestacao: +0.409
+
+  Dimensão 7:
+    • valor_financiado: +0.745
+    • plano_financiamento: +0.603
+    • valor_inicial_da_prestacao: +0.413
+
+  Dimensão 30:
+    • valor_financiado: +0.734
+    • plano_financiamento: +0.596
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 0:
+    • valor_financiado: +0.736
+    • plano_financiamento: +0.597
+    • valor_inicial_da_prestacao: +0.412
+
+INADIMPLENTES LUCRATIVOS - Top Dimensões:
+  Dimensão 23:
+    • valor_financiado: +0.737
+    • plano_financiamento: +0.599
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 30:
+    • valor_financiado: +0.734
+    • plano_financiamento: +0.596
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 0:
+    • valor_financiado: +0.736
+    • plano_financiamento: +0.597
+    • valor_inicial_da_prestacao: +0.412
+
+  Dimensão 49:
+    • valor_financiado: +0.736
+    • plano_financiamento: +0.600
+    • valor_inicial_da_prestacao: +0.411
+
+  Dimensão 33:
+    • valor_financiado: +0.732
+    • plano_financiamento: +0.597
+    • valor_inicial_da_prestacao: +0.411
+
