@@ -17,9 +17,9 @@ import shap
 import os
 
 # Criar diretório para gráficos
-os.makedirs('../graficos/XGBOOST', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/XGBOOST', exist_ok=True)
 
-dataset_maduro = load_and_preprocess_v3('../data/dataset_interno_top_one_atualizado.csv')
+dataset_maduro = load_and_preprocess_v3('../../data/dataset_interno_top_one_atualizado.csv')
 
 if dataset_maduro is not None:
     
@@ -221,7 +221,7 @@ if dataset_maduro is not None:
     plt.legend(loc='lower right', fontsize=10)
     plt.grid(alpha=0.3)
     plt.tight_layout()
-    plt.savefig('../graficos/XGBOOST/roc_curves.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/XGBOOST/roc_curves.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ ROC Curves salvas em graficos/XGBOOST/roc_curves.png")
     
@@ -238,7 +238,7 @@ if dataset_maduro is not None:
     plt.ylabel('Real', fontsize=12)
     plt.title('Confusion Matrix - XGBoost (Cost-Sensitive)', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    plt.savefig('../graficos/XGBOOST/confusion_matrix.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/XGBOOST/confusion_matrix.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Confusion Matrix salva em graficos/XGBOOST/confusion_matrix.png")
     
@@ -268,7 +268,7 @@ if dataset_maduro is not None:
                          feature_names=feature_names_short,
                          show=False, max_display=15)
         plt.tight_layout()
-        plt.savefig('../graficos/XGBOOST/shap_summary.png', dpi=300, bbox_inches='tight')
+        plt.savefig('../../graficos/analise_modelos/XGBOOST/shap_summary.png', dpi=300, bbox_inches='tight')
         plt.close()
         print("✓ SHAP Summary Plot salvo em graficos/XGBOOST/shap_summary.png")
         
@@ -287,7 +287,7 @@ if dataset_maduro is not None:
             plt.title('Top 20 Feature Importances - XGBoost', fontsize=14, fontweight='bold')
             plt.gca().invert_yaxis()
             plt.tight_layout()
-            plt.savefig('../graficos/XGBOOST/feature_importance.png', dpi=300, bbox_inches='tight')
+            plt.savefig('../../graficos/analise_modelos/XGBOOST/feature_importance.png', dpi=300, bbox_inches='tight')
             plt.close()
             print("✓ Feature Importance Plot salvo em graficos/XGBOOST/feature_importance.png")
         except Exception as e2:

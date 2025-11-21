@@ -25,8 +25,8 @@ plt.rcParams['figure.figsize'] = (16, 10)
 plt.rcParams['font.size'] = 10
 
 # ========== CONFIGURAÇÕES ==========
-DATA_PATH = Path('../data/dataset_interno_top_one_atualizado.csv')
-OUTPUT_DIR = Path('../graficos/ANALISE_EXPLORATORIA')
+DATA_PATH = Path('../../data/dataset_interno_top_one_atualizado.csv')
+OUTPUT_DIR = Path('../../graficos/analises_dataset/ANALISE_EXPLORATORIA')
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 print("="*80)

@@ -1,0 +1,12 @@
+MODELO PROFIT-LOSS HURDLE
+=========================
+
+AUC Classificador: 0.7600
+Correlação EV vs Real: 0.3572
+
+RESULTADOS FINANCEIROS:
+Lucro Baseline: R$ 2,444,397.21
+Lucro Otimizado: R$ 2,652,449.63
+Ganho Líquido: R$ 208,052.42
+Taxa de Aprovação: 90.8%
+Threshold de EV: R$ 6.18

@@ -85,7 +85,7 @@ print("🎯 MODELO DE OTIMIZAÇÃO DIRETA DE LUCRO")
 print("="*70)
 
 # ---------- 3. PREPARAÇÃO DOS DADOS ----------
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 df = calcular_metricas_financeiras(df)
 
@@ -312,7 +312,7 @@ print("\n✅ Modelo salvo: ../modelos/xgb_lucro_otimizado.json")
 
 # ---------- 10. GRÁFICOS ----------
 print("\n--- Gerando Gráficos ---")
-os.makedirs('../graficos/LUCRO_OTIMIZADO', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/LUCRO_OTIMIZADO', exist_ok=True)
 
 # 1. Lucro Real vs Lucro Esperado
 fig, axes = plt.subplots(2, 3, figsize=(20, 12))
@@ -379,7 +379,7 @@ wedges, texts, autotexts = ax6.pie(contagens, labels=decisoes, autopct='%1.1f%%'
 ax6.set_title('Distribuição de Decisões', fontsize=14, fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('../graficos/LUCRO_OTIMIZADO/analise_completa.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/LUCRO_OTIMIZADO/analise_completa.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ Gráficos salvos em graficos/LUCRO_OTIMIZADO/analise_completa.png")
 
@@ -412,7 +412,7 @@ try:
     plt.title('Top 20 Feature Importances - Modelo de Lucro', fontsize=14, fontweight='bold')
     plt.gca().invert_yaxis()
     plt.tight_layout()
-    plt.savefig('../graficos/LUCRO_OTIMIZADO/feature_importance.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/LUCRO_OTIMIZADO/feature_importance.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Feature Importance Plot salvo em graficos/LUCRO_OTIMIZADO/feature_importance.png")
 except Exception as e:

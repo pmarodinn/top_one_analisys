@@ -100,7 +100,7 @@ print("REDE NEURAL + AUDITOR LGBM OTIMIZADO (V6.4 - TREINAMENTO LONGO)")
 print("="*70)
 
 # ---------- 2. PREPARAÇÃO DOS DADOS ----------
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 print(f"\nDados carregados: {len(df)} linhas")
@@ -632,7 +632,7 @@ print(f"\nFalsos Positivos (Prejuízo aceito): {fp_mask.sum()} contratos")
 print(f"Falsos Negativos (Lucro rejeitado): {fn_mask.sum()} contratos")
 
 # Salvar gráficos SHAP
-os.makedirs('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap', exist_ok=True)
 
 print("\n--- Gerando Gráficos SHAP ---")
 
@@ -641,7 +641,7 @@ plt.figure(figsize=(12, 8))
 shap.summary_plot(shap_values_class1, X_test_sample, plot_type="dot", show=False, max_display=20)
 plt.title('SHAP Summary Plot - Importância e Impacto das Features', fontsize=14, fontweight='bold', pad=20)
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/summary_plot.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/summary_plot.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ Summary Plot salvo")
 
@@ -650,7 +650,7 @@ plt.figure(figsize=(12, 8))
 shap.summary_plot(shap_values_class1, X_test_sample, plot_type="bar", show=False, max_display=20)
 plt.title('SHAP Feature Importance - Top 20 Features', fontsize=14, fontweight='bold')
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/feature_importance_bar.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/feature_importance_bar.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ Bar Plot salvo")
 
@@ -672,7 +672,7 @@ if tp_mask.sum() > 0:
     plt.title(f'Waterfall Plot - Contrato Aceito CORRETAMENTE (Lucro Real: R$ {y_test_sample_lucro[tp_idx]:.2f})', 
               fontsize=12, fontweight='bold', pad=20)
     plt.tight_layout()
-    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_true_positive.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_true_positive.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Waterfall Plot (True Positive) salvo")
 
@@ -693,7 +693,7 @@ if fp_mask.sum() > 0:
     plt.title(f'Waterfall Plot - FALSO POSITIVO (Prejuízo: R$ {y_test_sample_lucro[fp_idx]:.2f} - Modelo ERROU)', 
               fontsize=12, fontweight='bold', pad=20)
     plt.tight_layout()
-    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_false_positive.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_false_positive.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Waterfall Plot (False Positive) salvo")
 
@@ -714,7 +714,7 @@ if fn_mask.sum() > 0:
     plt.title(f'Waterfall Plot - FALSO NEGATIVO (Lucro: R$ {y_test_sample_lucro[fn_idx]:.2f} - Modelo PERDEU)', 
               fontsize=12, fontweight='bold', pad=20)
     plt.tight_layout()
-    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_false_negative.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/waterfall_false_negative.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Waterfall Plot (False Negative) salvo")
 
@@ -732,7 +732,7 @@ for i, feat in enumerate(top_3_features, 1):
         )
         plt.title(f'Dependence Plot - {feat}', fontsize=14, fontweight='bold')
         plt.tight_layout()
-        plt.savefig(f'../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/dependence_plot_{i}_{feat[:30]}.png', 
+        plt.savefig(f'../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/dependence_plot_{i}_{feat[:30]}.png', 
                     dpi=300, bbox_inches='tight')
         plt.close()
         print(f"✓ Dependence Plot {i} ({feat}) salvo")
@@ -768,7 +768,7 @@ if fp_mask.sum() > 0 and tp_mask.sum() > 0:
     ax.legend()
     ax.grid(alpha=0.3, axis='y')
     plt.tight_layout()
-    plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/comparison_fp_vs_tp.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/comparison_fp_vs_tp.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Comparação FP vs TP salva")
 
@@ -812,7 +812,7 @@ for idx, embed in enumerate(top_embeddings[:3]):
     ax.grid(alpha=0.3, axis='x')
 
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/embedding_correlations.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/embedding_correlations.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("\n✓ Análise de correlação dos embeddings salva")
 
@@ -870,7 +870,7 @@ cbar3.set_label('|Lucro| (R$)', fontsize=11)
 ax3.grid(alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/tsne_embeddings_2d.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/tsne_embeddings_2d.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ Visualização t-SNE salva")
 
@@ -924,12 +924,12 @@ ax2.set_title('Densidade de Contratos PREJUÍZO', fontsize=14, fontweight='bold'
 ax2.grid(alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/tsne_density_comparison.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/tsne_density_comparison.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ Análise de densidade t-SNE salva")
 
 # Salvar relatório de interpretabilidade
-with open('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/shap/interpretability_report.txt', 'w', encoding='utf-8') as f:
+with open('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/shap/interpretability_report.txt', 'w', encoding='utf-8') as f:
     f.write("="*70 + "\n")
     f.write("RELATÓRIO DE INTERPRETABILIDADE - SHAP VALUES\n")
     f.write("="*70 + "\n\n")
@@ -984,7 +984,7 @@ print("  - t-SNE visualizações (2)")
 
 # ---------- 16. GRÁFICOS (Tradicionais) ----------
 print("\n--- Gerando Gráficos ---")
-os.makedirs('../graficos/NN_LGBM_AUDITOR_OTIMIZADO', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO', exist_ok=True)
 # 1. Histórico de treinamento (da Rede Neural)
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 ax1 = axes[0]
@@ -1004,7 +1004,7 @@ ax2.set_title('Evolução da AUC (Rede Neural)', fontsize=14, fontweight='bold')
 ax2.legend()
 ax2.grid(alpha=0.3)
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/historico_treinamento_NN.png', dpi=300)
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/historico_treinamento_NN.png', dpi=300)
 plt.close()
 print("Histórico de treinamento da NN salvo")
 
@@ -1065,7 +1065,7 @@ plt.colorbar(scatter, ax=ax4, label='Aceito (1=Sim, 0=Não)')
 ax4.legend()
 ax4.grid(alpha=0.3)
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/analise_completa.png', dpi=300)
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/analise_completa.png', dpi=300)
 plt.close()
 print("Análise completa (LGBM) salva")
 
@@ -1078,7 +1078,7 @@ ax.set_xlabel('Decisão do Modelo (LGBM)', fontsize=12)
 ax.set_ylabel('Realidade', fontsize=12)
 ax.set_title('Matriz de Confusão - Lucro vs Decisão (LGBM)', fontsize=14, fontweight='bold')
 plt.tight_layout()
-plt.savefig('../graficos/NN_LGBM_AUDITOR_OTIMIZADO/confusion_matrix.png', dpi=300)
+plt.savefig('../../graficos/analise_modelos/NN_LGBM_AUDITOR_OTIMIZADO/confusion_matrix.png', dpi=300)
 plt.close()
 print("Matriz de confusão (LGBM) salva")
 

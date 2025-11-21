@@ -25,3 +25,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Shapefiles grandes (>100MB)
+data/BR_Municipios_2024.*

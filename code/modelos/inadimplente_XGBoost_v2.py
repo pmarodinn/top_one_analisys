@@ -36,7 +36,7 @@ def load_and_preprocess_v3(filepath):
     return df
 
 # ---------- 2.  PREPARAÇÃO ----------
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 print(f"Dados brutos carregados: {len(df)} linhas")
@@ -365,7 +365,7 @@ print("\n✅ Modelo salvo: ../modelos/xgb_lucro_unico.json")
 
 # ---------- 6.  GRÁFICOS ----------
 print("\n--- Gerando Gráficos ---")
-os.makedirs('../graficos/XGB_lucro', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/XGB_lucro', exist_ok=True)
 
 print("Gerando ROC Curve...")
 # ROC - Comparação com e sem Bayes
@@ -397,7 +397,7 @@ ax2.legend(loc='upper right', fontsize=10)
 ax2.grid(alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('../graficos/XGB_lucro/roc_pr_curves.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/XGB_lucro/roc_pr_curves.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ ROC e Precision-Recall Curves salvas em graficos/XGB_lucro/roc_pr_curves.png")
 
@@ -422,7 +422,7 @@ ax2.set_ylabel('Real', fontsize=12)
 ax2.set_title(f'COM Bayes (threshold={float(t_opt):.2f})\nRecall={recall_bay_val:.2%}', fontsize=14, fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('../graficos/XGB_lucro/conf_matrix_comparison.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/XGB_lucro/conf_matrix_comparison.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ Confusion Matrices salvas em graficos/XGB_lucro/conf_matrix_comparison.png")
 
@@ -439,7 +439,7 @@ try:
         plt.title('Top 20 Feature Importances - XGBoost', fontsize=14, fontweight='bold')
         plt.gca().invert_yaxis()
         plt.tight_layout()
-        plt.savefig('../graficos/XGB_lucro/feature_importance.png', dpi=300, bbox_inches='tight')
+        plt.savefig('../../graficos/analise_modelos/XGB_lucro/feature_importance.png', dpi=300, bbox_inches='tight')
         plt.close()
         print("✓ Feature Importance Plot salvo em graficos/XGB_lucro/feature_importance.png")
 except Exception as e:
@@ -471,7 +471,7 @@ try:
     ax.grid(alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('../graficos/XGB_lucro/calibration_curve.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/XGB_lucro/calibration_curve.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Calibration Curve salva em graficos/XGB_lucro/calibration_curve.png")
 except Exception as e:

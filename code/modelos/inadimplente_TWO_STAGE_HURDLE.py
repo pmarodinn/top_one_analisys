@@ -62,7 +62,7 @@ print("="*80)
 # --------------------------------------
 # 1. CARREGAMENTO E PREPARAÇÃO
 # --------------------------------------
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 print(f"\n📊 Dados carregados: {len(df)} contratos")
 
@@ -703,18 +703,94 @@ pred_amount_train = np.clip(pred_amount_train, 0, None)
 pred_amount_test = np.clip(pred_amount_test, 0, None)
 
 # --------------------------------------
-# 5. COMBINAÇÃO HURDLE
+# 5. MODELO HÍBRIDO: PROBABILIDADE + REGRESSÃO QUANTÍLICA
 # --------------------------------------
-expected_profit_train = prob_pay_train * pred_amount_train - prob_default_train * custo_default_medio
-expected_profit_test = prob_pay_test * pred_amount_test - prob_default_test * custo_default_medio
-
-mae_hurdle = mean_absolute_error(y_test_lucro, expected_profit_test)
-r2_hurdle = r2_score(y_test_lucro, expected_profit_test)
 print("\n" + "="*80)
-print("🎯 HURDLE FINAL - MÉTRICAS")
+print("🧩 MODELO HÍBRIDO: PROBABILIDADE + REGRESSÃO QUANTÍLICA")
 print("="*80)
-print(f"MAE = R$ {mae_hurdle:.2f}")
-print(f"R²  = {r2_hurdle:.4f}")
+
+prob_pay_train_col = prob_pay_train.reshape(-1, 1).astype(np.float32)
+prob_pay_test_col = prob_pay_test.reshape(-1, 1).astype(np.float32)
+prob_default_train_col = prob_default_train.reshape(-1, 1).astype(np.float32)
+prob_default_test_col = prob_default_test.reshape(-1, 1).astype(np.float32)
+
+reg_stack_train = np.column_stack([
+    pred_nn_reg_train,
+    pred_lgb_reg_train,
+    pred_xgb_reg_train,
+    pred_cat_reg_train,
+    pred_amount_train
+]).astype(np.float32)
+
+reg_stack_test = np.column_stack([
+    pred_nn_reg_test,
+    pred_lgb_reg_test,
+    pred_xgb_reg_test,
+    pred_cat_reg_test,
+    pred_amount_test
+]).astype(np.float32)
+
+hybrid_train_extra = np.hstack([
+    prob_pay_train_col,
+    prob_default_train_col,
+    reg_stack_train
+])
+
+hybrid_test_extra = np.hstack([
+    prob_pay_test_col,
+    prob_default_test_col,
+    reg_stack_test
+])
+
+X_train_hybrid = np.hstack([X_train_matrix, hybrid_train_extra])
+X_test_hybrid = np.hstack([X_test_matrix, hybrid_test_extra])
+
+hybrid_reg_params = {
+    'objective': 'quantile',
+    'alpha': 0.5,
+    'metric': 'mae',
+    'learning_rate': 0.02,
+    'n_estimators': 5000,
+    'num_leaves': 180,
+    'min_child_samples': 80,
+    'subsample': 0.85,
+    'colsample_bytree': 0.75,
+    'reg_alpha': 0.4,
+    'reg_lambda': 1.5,
+    'random_state': 42,
+    'n_jobs': -1
+}
+
+hybrid_X_train, hybrid_X_val, hybrid_y_train, hybrid_y_val = train_test_split(
+    X_train_hybrid,
+    y_train_lucro,
+    test_size=0.15,
+    random_state=42
+)
+
+hybrid_model_cv = lgbm.LGBMRegressor(**hybrid_reg_params)
+hybrid_model_cv.fit(
+    hybrid_X_train,
+    hybrid_y_train,
+    eval_set=[(hybrid_X_val, hybrid_y_val)],
+    eval_metric='mae',
+    callbacks=[lgbm.early_stopping(250, verbose=False)]
+)
+best_hybrid_iter = hybrid_model_cv.best_iteration_ or hybrid_reg_params['n_estimators']
+
+final_hybrid_model = lgbm.LGBMRegressor(**{**hybrid_reg_params, 'n_estimators': best_hybrid_iter})
+final_hybrid_model.fit(X_train_hybrid, y_train_lucro)
+
+pred_hybrid_train = final_hybrid_model.predict(X_train_hybrid)
+pred_hybrid_test = final_hybrid_model.predict(X_test_hybrid)
+
+val_mae = mean_absolute_error(hybrid_y_val, hybrid_model_cv.predict(hybrid_X_val))
+mae_hybrid = mean_absolute_error(y_test_lucro, pred_hybrid_test)
+r2_hybrid = r2_score(y_test_lucro, pred_hybrid_test)
+
+print(f"   ✓ Val MAE (Quantile GBM): R$ {val_mae:.2f}")
+print(f"   ✓ MODELO HÍBRIDO - MAE: R$ {mae_hybrid:.2f}")
+print(f"   ✓ MODELO HÍBRIDO - R²: {r2_hybrid:.4f}")
 
 # --------------------------------------
 # 6. OTIMIZAÇÃO PARETO
@@ -723,7 +799,7 @@ print("\n" + "="*80)
 print("🔄 OTIMIZAÇÃO MULTI-OBJETIVO (PARETO)")
 print("="*80)
 
-pred_meta_test = expected_profit_test
+pred_meta_test = pred_hybrid_test
 
 def objective_pareto(trial):
     threshold = trial.suggest_float('threshold', pred_meta_test.min(), pred_meta_test.max())
@@ -782,13 +858,13 @@ print("📊 RESULTADOS FINAIS")
 print("="*80)
 print(f"AUC ProbPagamento (Meta): {auc_meta_clf:.4f}")
 print(f"MAE Valor Condicional (Meta): R$ {mean_absolute_error(y_train_pos, meta_reg_model.predict(meta_reg_train)):.2f}")
-print(f"HURDLE - MAE: R$ {mae_hurdle:.2f} | R²: {r2_hurdle:.4f}")
+print(f"MODELO HÍBRIDO - MAE: R$ {mae_hybrid:.2f} | R²: {r2_hybrid:.4f}")
 print("\n--- Comparação de Cenários ---")
 print(f"{'Cenário':<45} {'Lucro':>15} {'Eficiência':>12} {'Contratos':>12}")
 print("="*80)
 print(f"{'1. Baseline (aceitar todos)':<45} R$ {lucro_baseline:>12,.2f} {lucro_baseline/lucro_maximo:>11.2%} {len(y_test_lucro):>11,}")
 print(f"{'2. Máximo Teórico (lucro>0)':<45} R$ {lucro_maximo:>12,.2f} {100.0:>11.2%} {(y_test_lucro>0).sum():>11,}")
-print(f"{'3. HURDLE + PARETO (otimizado)':<45} R$ {lucro_otimizado:>12,.2f} {lucro_otimizado/lucro_maximo:>11.2%} {num_aceitos:>11,}")
+print(f"{'3. HÍBRIDO + PARETO (otimizado)':<45} R$ {lucro_otimizado:>12,.2f} {lucro_otimizado/lucro_maximo:>11.2%} {num_aceitos:>11,}")
 print("="*80)
 print(f"💰 Ganho vs Baseline: R$ {ganho_vs_baseline:+,.2f} ({ganho_perc:+.2f}%)")
 print(f"📊 Taxa de Aprovação: {taxa_aceitacao:.1f}%")
@@ -811,7 +887,7 @@ f1 = 2 * (precisao * recall) / (precisao + recall) if (precisao + recall) > 0 el
 # 8. VISUALIZAÇÕES
 # --------------------------------------
 print("\n--- Gerando Visualizações ---")
-os.makedirs('../graficos/HURDLE_MODEL', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/HURDLE_MODEL', exist_ok=True)
 
 fig, axes = plt.subplots(2, 3, figsize=(20, 12))
 
@@ -884,7 +960,7 @@ ax6.pie(contagens, labels=decisoes, autopct='%1.1f%%', colors=['green', 'red'], 
 ax6.set_title('Distribuição de Decisões')
 
 plt.tight_layout()
-plt.savefig('../graficos/HURDLE_MODEL/analise_hurdle.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/HURDLE_MODEL/analise_hurdle.png', dpi=300, bbox_inches='tight')
 plt.close()
 print("✓ Gráficos salvos em graficos/HURDLE_MODEL")
 
@@ -895,11 +971,11 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=True,
             yticklabels=['Adimplente', 'Inadimplente'])
 plt.title('Matriz de Confusão - Modelo Hurdle')
 plt.tight_layout()
-plt.savefig('../graficos/HURDLE_MODEL/matriz_confusao.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/HURDLE_MODEL/matriz_confusao.png', dpi=300, bbox_inches='tight')
 plt.close(fig_cm)
 
 # Resumo
-with open('../graficos/HURDLE_MODEL/resumo.txt', 'w', encoding='utf-8') as f:
+with open('../../graficos/analise_modelos/HURDLE_MODEL/resumo.txt', 'w', encoding='utf-8') as f:
     f.write("="*80 + "\n")
     f.write("MODELO HURDLE: CLASSIFICAÇÃO + REGRESSÃO\n")
     f.write("="*80 + "\n\n")
@@ -915,10 +991,10 @@ with open('../graficos/HURDLE_MODEL/resumo.txt', 'w', encoding='utf-8') as f:
     f.write(f"LGBM MAE: R$ {mean_absolute_error(y_train_pos, oof_lgb_reg):.2f}\n")
     f.write(f"XGB MAE: R$ {mean_absolute_error(y_train_pos, oof_xgb_reg):.2f}\n")
     f.write(f"CAT MAE: R$ {mean_absolute_error(y_train_pos, oof_cat_reg):.2f}\n\n")
-    f.write("--- COMBINAÇÃO HURDLE ---\n")
-    f.write(f"MAE Final: R$ {mae_hurdle:.2f}\n")
-    f.write(f"R² Final: {r2_hurdle:.4f}\n")
-    f.write(f"Custo médio default: R$ {custo_default_medio:.2f}\n\n")
+    f.write("--- MODELO HÍBRIDO ---\n")
+    f.write(f"MAE Final: R$ {mae_hybrid:.2f}\n")
+    f.write(f"R² Final: {r2_hybrid:.4f}\n")
+    f.write(f"Custo médio default (referência anterior): R$ {custo_default_medio:.2f}\n\n")
     f.write("--- PARETO ---\n")
     f.write(f"Threshold: R$ {best_threshold:.2f}\n")
     f.write(f"Lucro otimizado: R$ {lucro_otimizado:,.2f}\n")
@@ -932,5 +1008,5 @@ with open('../graficos/HURDLE_MODEL/resumo.txt', 'w', encoding='utf-8') as f:
 print("\n" + "="*80)
 print("✅ MODELO HURDLE FINALIZADO")
 print("="*80)
-print(f"HURDLE - Ganho vs baseline: {ganho_perc:+.2f}%")
+print(f"MODELO HÍBRIDO - Ganho vs baseline: {ganho_perc:+.2f}%")
 print("Arquivos em graficos/HURDLE_MODEL/ (analise_hurdle, matriz_confusao, resumo)")

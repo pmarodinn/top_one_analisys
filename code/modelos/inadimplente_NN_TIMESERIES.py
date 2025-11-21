@@ -79,7 +79,7 @@ def load_and_preprocess_v3(filepath):
     df = df.replace([np.inf, -np.inf], np.nan)
     return df
 
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 print(f"\n📊 Dados carregados: {len(df)} linhas")
@@ -634,7 +634,7 @@ else:
     
     # ---------- 9. VISUALIZAÇÕES ----------
     print("\n--- Gerando Visualizações ---")
-    os.makedirs('../graficos/NN_TIMESERIES', exist_ok=True)
+    os.makedirs('../../graficos/analise_modelos/NN_TIMESERIES', exist_ok=True)
     
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     
@@ -686,7 +686,7 @@ else:
     ax4.tick_params(axis='x', rotation=45)
     
     plt.tight_layout()
-    plt.savefig('../graficos/NN_TIMESERIES/timeseries_analysis.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN_TIMESERIES/timeseries_analysis.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Gráfico de análise temporal salvo")
     
@@ -711,16 +711,16 @@ else:
             ha='center', transform=ax.transAxes, fontsize=10, fontweight='bold')
     
     plt.tight_layout()
-    plt.savefig('../graficos/NN_TIMESERIES/confusion_matrix.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN_TIMESERIES/confusion_matrix.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Matriz de confusão consolidada salva")
     
     # Salvar resultados em CSV
-    df_results.to_csv('../graficos/NN_TIMESERIES/timeseries_results.csv', index=False)
+    df_results.to_csv('../../graficos/analise_modelos/NN_TIMESERIES/timeseries_results.csv', index=False)
     print("✓ Resultados salvos em CSV")
     
     # Relatório textual
-    with open('../graficos/NN_TIMESERIES/timeseries_report.txt', 'w', encoding='utf-8') as f:
+    with open('../../graficos/analise_modelos/NN_TIMESERIES/timeseries_report.txt', 'w', encoding='utf-8') as f:
         f.write("="*70 + "\n")
         f.write("RELATÓRIO - VALIDAÇÃO TEMPORAL (TIME SERIES SPLIT)\n")
         f.write("="*70 + "\n\n")

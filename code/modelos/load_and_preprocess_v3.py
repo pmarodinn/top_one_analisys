@@ -87,7 +87,7 @@ def load_and_preprocess_v3(filepath):
 
 # Bloco de execução principal
 if __name__ == "__main__":
-    filepath = '../data/dataset_interno_top_one_atualizado.csv'
+    filepath = '../../data/dataset_interno_top_one_atualizado.csv'
     df_processado = load_and_preprocess_v3(filepath)
     
     if df_processado is not None:

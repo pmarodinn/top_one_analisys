@@ -56,7 +56,7 @@ print("🏆 MODELO FINAL: ENSEMBLE HETEROGÊNEO + OTIMIZAÇÃO MULTI-OBJETIVO")
 print("="*80)
 
 # ---------- 1. CARREGAMENTO E PREPARAÇÃO ----------
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 print(f"\n📊 Dados carregados: {len(df)} contratos")
@@ -493,7 +493,7 @@ print(f"🎯 Pareto Frontier: {len(pareto_trials)} soluções ótimas encontrada
 
 # ---------- 6. VISUALIZAÇÕES ----------
 print("\n--- Gerando Visualizações ---")
-os.makedirs('../graficos/ENSEMBLE_PARETO_FINAL', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/ENSEMBLE_PARETO_FINAL', exist_ok=True)
 
 fig, axes = plt.subplots(2, 3, figsize=(20, 12))
 
@@ -547,7 +547,7 @@ try:
     plt.ylabel('Realidade', fontsize=12)
     plt.title('Matriz de Confusão', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    plt.savefig('../graficos/ENSEMBLE_PARETO_FINAL/matriz_confusao.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/ENSEMBLE_PARETO_FINAL/matriz_confusao.png', dpi=300, bbox_inches='tight')
     plt.close(fig_cm)
 except Exception:
     # Não falhar todo o pipeline por causa de salvamento de figura
@@ -589,7 +589,7 @@ wedges, texts, autotexts = ax6.pie(contagens, labels=decisoes, autopct='%1.1f%%'
 ax6.set_title('Distribuição de Decisões', fontsize=14, fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('../graficos/ENSEMBLE_PARETO_FINAL/analise_completa.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/ENSEMBLE_PARETO_FINAL/analise_completa.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 print("✓ Gráfico principal salvo")
@@ -983,7 +983,7 @@ ax_emb4.text(0.98, 0.97, textstr, transform=ax_emb4.transAxes, fontsize=9,
             verticalalignment='top', horizontalalignment='right', bbox=props)
 
 plt.tight_layout()
-plt.savefig('../graficos/ENSEMBLE_PARETO_FINAL/analise_embeddings.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/ENSEMBLE_PARETO_FINAL/analise_embeddings.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # ========== VISUALIZAÇÃO: MAPEAMENTO DIMENSÕES → FEATURES ==========
@@ -1056,7 +1056,7 @@ plot_dimension_mapping(axes_map[2], top_inadimplentes_lucrativos, embeddings_tes
                       '💰 INADIMPLENTES LUCRATIVOS: Dimensões → Features Originais', 'orange')
 
 plt.tight_layout()
-plt.savefig('../graficos/ENSEMBLE_PARETO_FINAL/mapeamento_dimensoes_features.png', dpi=300, bbox_inches='tight')
+plt.savefig('../../graficos/analise_modelos/ENSEMBLE_PARETO_FINAL/mapeamento_dimensoes_features.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 print("✓ Gráficos salvos (incluindo análise de embeddings e mapeamento)")
@@ -1117,7 +1117,7 @@ print("   - Múltiplas features podem contribuir para uma dimensão (espaço lat
 
 # ---------- 7. SALVAR RESUMO COMPLETO (APÓS ANÁLISE DE EMBEDDINGS) ----------
 print("\n--- Salvando Resumo Completo ---")
-with open('../graficos/ENSEMBLE_PARETO_FINAL/resumo.txt', 'w', encoding='utf-8') as f:
+with open('../../graficos/analise_modelos/ENSEMBLE_PARETO_FINAL/resumo.txt', 'w', encoding='utf-8') as f:
     f.write("="*80 + "\n")
     f.write("MODELO FINAL: ENSEMBLE HETEROGÊNEO + OTIMIZAÇÃO MULTI-OBJETIVO\n")
     f.write("="*80 + "\n\n")

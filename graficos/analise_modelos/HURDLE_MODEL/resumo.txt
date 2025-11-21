@@ -1,0 +1,34 @@
+================================================================================
+MODELO HURDLE: CLASSIFICAÇÃO + REGRESSÃO
+================================================================================
+
+Treino/Teste: 80/20 | Contratos teste: 9,241
+
+--- MODELO A (Classificação) ---
+NN AUC: 0.7182
+LGBM AUC: 0.7843
+XGB AUC: 0.7854
+CAT AUC: 0.7859
+META AUC: 0.7860
+
+--- MODELO B (Regressão Condicional) ---
+NN MAE: R$ 193.22
+LGBM MAE: R$ 100.38
+XGB MAE: R$ 106.33
+CAT MAE: R$ 85.51
+
+--- MODELO HÍBRIDO ---
+MAE Final: R$ 527.57
+R² Final: -0.0834
+Custo médio default (referência anterior): R$ 1184.95
+
+--- PARETO ---
+Threshold: R$ -50.72
+Lucro otimizado: R$ 2,521,788.89
+FDR: 24.74%
+Taxa de aprovação: 94.7%
+
+--- MATRIZ DE CONFUSÃO ---
+TN: 6,586 | FP: 169
+FN: 2,165 | TP: 321
+Precision: 65.51% | Recall: 12.91% | F1: 21.57%

@@ -140,7 +140,7 @@ for idx, row in lucro_por_cidade.nsmallest(10, 'lucro_total').iterrows():
 print("\n📊 Gerando visualizações...")
 
 import os
-output_dir = '/home/usuario/Downloads/Documentos/top_one_model_v2/graficos/ANALISE_RJ_LUCRO'
+output_dir = '../../graficos/analises_dataset/ANALISE_RJ_LUCRO'
 os.makedirs(output_dir, exist_ok=True)
 
 # ========== FIGURA 1: EVOLUÇÃO TEMPORAL DO LUCRO ==========

@@ -308,7 +308,7 @@ print("\n📊 Gerando visualizações...")
 
 # Criar pasta para salvar os gráficos
 import os
-output_dir = '/home/usuario/Downloads/Documentos/top_one_model_v2/graficos/ANALISE_EXPLORATORIA_IN_PARCIAL'
+output_dir = '../../graficos/analises_dataset/ANALISE_EXPLORATORIA_IN_PARCIAL'
 os.makedirs(output_dir, exist_ok=True)
 
 fig = plt.figure(figsize=(20, 12))

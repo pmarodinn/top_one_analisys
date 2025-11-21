@@ -17,7 +17,7 @@ import shap
 import os
 
 # Criar diretório para gráficos
-os.makedirs('../graficos/NN', exist_ok=True)
+os.makedirs('../../graficos/analise_modelos/NN', exist_ok=True)
 
 # --- FASE 0: FUNÇÃO DE PREPARAÇÃO DE DADOS ---
 def load_and_preprocess_v3(filepath):
@@ -118,7 +118,7 @@ def criar_modelo_pd_nn(input_shape):
 # --- FUNÇÃO PRINCIPAL DE EXECUÇÃO ---
 def run_pd_model():
     # --- Carregar os dados (Versão 3 - Simplificada) ---
-    dataset_maduro = load_and_preprocess_v3('../data/dataset_interno_top_one_atualizado.csv')
+    dataset_maduro = load_and_preprocess_v3('../../data/dataset_interno_top_one_atualizado.csv')
 
     if dataset_maduro is None:
         print("Falha ao carregar os dados. Encerrando.")
@@ -317,7 +317,7 @@ def run_pd_model():
     plt.legend(loc='lower right', fontsize=10)
     plt.grid(alpha=0.3)
     plt.tight_layout()
-    plt.savefig('../graficos/NN/roc_curves.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN/roc_curves.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ ROC Curves salvas em graficos/NN/roc_curves.png")
     
@@ -334,7 +334,7 @@ def run_pd_model():
     plt.ylabel('Real', fontsize=12)
     plt.title('Confusion Matrix - Neural Network (Cost-Sensitive)', fontsize=14, fontweight='bold')
     plt.tight_layout()
-    plt.savefig('../graficos/NN/confusion_matrix.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../../graficos/analise_modelos/NN/confusion_matrix.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("✓ Confusion Matrix salva em graficos/NN/confusion_matrix.png")
     
@@ -368,7 +368,7 @@ def run_pd_model():
         plt.grid(alpha=0.3)
         
         plt.tight_layout()
-        plt.savefig('../graficos/NN/training_history.png', dpi=300, bbox_inches='tight')
+        plt.savefig('../../graficos/analise_modelos/NN/training_history.png', dpi=300, bbox_inches='tight')
         plt.close()
         print("✓ Training History Plot salvo em graficos/NN/training_history.png")
         

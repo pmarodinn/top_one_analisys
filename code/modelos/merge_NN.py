@@ -80,7 +80,7 @@ print("REDE NEURAL DUPLA + AUDITOR LGBM OTIMIZADO (V7.0 - Dual Stacking)")
 print("="*70)
 
 # ---------- 2. PREPARAÇÃO DOS DADOS ----------
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 print(f"\nDados carregados: {len(df)} linhas")
@@ -680,7 +680,7 @@ else:
     print("Nenhum contrato aceito.")
 
 # ---------- 15. SALVAR MODELO ----------
-GRAFICO_PATH = '../graficos/NN_LGBM_AUDITOR_DUPLO_V7.1'
+GRAFICO_PATH = '../../graficos/analise_modelos/NN_LGBM_AUDITOR_DUPLO_V7.1'
 MODELO_PATH = '../modelos/V7.1'
 os.makedirs(GRAFICO_PATH, exist_ok=True)
 os.makedirs(MODELO_PATH, exist_ok=True)
