@@ -1,0 +1,48 @@
+================================================================================
+RELATÓRIO DE ANÁLISE EXPLORATÓRIA - DATASET TESTE EXTERNO
+================================================================================
+
+Data de geração: 2025-12-08 17:51:37
+Dataset: /home/usuario/Downloads/Documentos/top_one_model_v2/data/teste_externo/datasets_tratados/dataset_teste_externo_final.csv
+
+--- INFORMAÇÕES GERAIS ---
+Total de registros: 77,139
+Total de colunas: 44
+
+--- PERÍODO ---
+Data início: 2022-01-25 00:00:00
+Data fim: 2024-02-28 00:00:00
+
+--- DISTRIBUIÇÃO GEOGRÁFICA ---
+Estados únicos: 22
+Estado com mais contratos: PR (37,619 contratos)
+
+--- PERFIL ETÁRIO ---
+Idade média: 48.2 anos
+Idade mediana: 48.0 anos
+Faixa etária: 20 - 90 anos
+
+--- VALORES FINANCIADOS ---
+Valor médio: R$ 1,540.60
+Valor mediano: R$ 1,380.00
+Valor total: R$ 118,840,556.11
+Faixa de valores: R$ 100.00 - R$ 10,000.00
+
+--- TOP 5 PROFISSÕES ---
+1. Assalariado: 27,562 (35.73%)
+2. Autonomo: 24,032 (31.15%)
+3. Aposentado: 12,076 (15.65%)
+4. Empresario: 2,832 (3.67%)
+5. Pensionisto: 2,821 (3.66%)
+
+--- TOP 5 PRODUTOS ---
+1. PROCEDIMENTO ESTETICO: 21,540 (27.92%)
+2. CELULAR: 5,160 (6.69%)
+3. PROCEDIMENTOS ESTETICOS: 2,890 (3.75%)
+4. PROCEDIMENTOS ESTÉTICOS: 1,586 (2.06%)
+5. PROCEDIMENTO ESTÉTICO: 1,417 (1.84%)
+
+================================================================================
+Análise concluída com sucesso!
+Gráficos salvos em: /home/usuario/Downloads/Documentos/top_one_model_v2/graficos/analise_teste_externo
+================================================================================

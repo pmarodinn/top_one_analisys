@@ -1,0 +1,19 @@
+MODELO PROFIT-LOSS HURDLE COM ANOMALY DETECTION
+===============================================
+
+AUC Classificador: 0.7813
+Correlação EV vs Real: 0.4791
+
+ANOMALY DETECTION (Cauda Longa de Perdas):
+Correlação Anomaly Score vs Lucro: 0.0276
+Lucro Médio (Baixa Anomalia): R$ 254.96
+Lucro Médio (Alta Anomalia): R$ 324.22
+% Prejuízo (Baixa Anomalia): 21.6%
+% Prejuízo (Alta Anomalia): 19.1%
+
+RESULTADOS FINANCEIROS:
+Lucro Baseline: R$ 2,848,882.61
+Lucro Otimizado: R$ 3,385,264.32
+Ganho Líquido: R$ 536,381.71
+Taxa de Aprovação: 86.6%
+Threshold de EV: R$ 27.03

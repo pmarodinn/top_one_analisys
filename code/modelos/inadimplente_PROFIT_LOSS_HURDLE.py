@@ -27,6 +27,7 @@ import re
 
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.preprocessing import StandardScaler, RobustScaler
+from sklearn.ensemble import IsolationForest
 from sklearn.metrics import (
     roc_auc_score,
     mean_absolute_error,
@@ -58,7 +59,7 @@ from load_and_preprocess_v3 import load_and_preprocess_v3
 # Configurações
 tf.config.threading.set_intra_op_parallelism_threads(2)
 tf.config.threading.set_inter_op_parallelism_threads(2)
-OUTPUT_DIR = '../graficos/analise_modelos/PROFIT_LOSS_MODEL'
+OUTPUT_DIR = '../../graficos/analise_modelos/PROFIT_LOSS_MODEL'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 print("="*80)
@@ -68,7 +69,7 @@ print("="*80)
 # --------------------------------------
 # 1. CARREGAMENTO E PREPARAÇÃO
 # --------------------------------------
-DATA_FILE = '../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/datasets_tratados/dataset_interno_top_one_final.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 # Definição dos Targets
@@ -88,16 +89,150 @@ print(f"   Total Contratos: {len(df)}")
 print(f"   Lucrativos (Classe 1): {df['target_class'].sum()} ({df['target_class'].mean():.1%})")
 print(f"   Prejuízo (Classe 0): {(df['target_class'] == 0).sum()} ({(1-df['target_class'].mean()):.1%})")
 
-# Engenharia Temporal Básica
+# --------------------------------------
+# ENGENHARIA TEMPORAL AVANÇADA
+# --------------------------------------
+print("\n" + "="*80)
+print("📅 ENGENHARIA DE FEATURES TEMPORAIS")
+print("="*80)
+
 if 'Data_Lancamento' in df.columns:
-    mes = df['Data_Lancamento'].dt.month.fillna(0)
-    df['mes_sin'] = np.sin(2 * np.pi * mes / 12)
-    df['mes_cos'] = np.cos(2 * np.pi * mes / 12)
+    print("Criando features temporais complexas...")
+    
+    # Extrair componentes básicos
+    df['ano'] = df['Data_Lancamento'].dt.year
+    df['mes'] = df['Data_Lancamento'].dt.month
+    df['dia'] = df['Data_Lancamento'].dt.day
+    df['trimestre'] = df['Data_Lancamento'].dt.quarter
+    df['dia_semana'] = df['Data_Lancamento'].dt.dayofweek
+    df['dia_ano'] = df['Data_Lancamento'].dt.dayofyear
+    df['semana_ano'] = df['Data_Lancamento'].dt.isocalendar().week
+    
+    # Sazonalidade Cíclica (sin/cos para capturar periodicidade)
+    df['mes_sin'] = np.sin(2 * np.pi * df['mes'] / 12)
+    df['mes_cos'] = np.cos(2 * np.pi * df['mes'] / 12)
+    df['trimestre_sin'] = np.sin(2 * np.pi * df['trimestre'] / 4)
+    df['trimestre_cos'] = np.cos(2 * np.pi * df['trimestre'] / 4)
+    df['dia_ano_sin'] = np.sin(2 * np.pi * df['dia_ano'] / 365)
+    df['dia_ano_cos'] = np.cos(2 * np.pi * df['dia_ano'] / 365)
+    
+    # Períodos Críticos Específicos (baseado na sua observação)
+    # Fim de ano: Novembro, Dezembro, Janeiro
+    df['periodo_fim_ano'] = df['mes'].isin([11, 12, 1]).astype(int)
+    
+    # Carnaval (aproximação: Fevereiro-Março)
+    df['periodo_carnaval'] = df['mes'].isin([2, 3]).astype(int)
+    
+    # Período crítico completo (fim de ano + carnaval)
+    df['periodo_critico'] = (df['periodo_fim_ano'] | df['periodo_carnaval']).astype(int)
+    
+    # Meio do ano (Junho-Julho - pode ter padrões diferentes)
+    df['periodo_meio_ano'] = df['mes'].isin([6, 7]).astype(int)
+    
+    # Início de ano fiscal/escolar (Janeiro-Março)
+    df['inicio_ano'] = df['mes'].isin([1, 2, 3]).astype(int)
+    
+    # Interação Ano-Mês (para capturar mudanças de comportamento entre anos)
+    # Exemplo: Dezembro-2023 vs Dezembro-2024 podem ter padrões diferentes
+    df['ano_mes'] = df['ano'].astype(str) + '_' + df['mes'].astype(str).str.zfill(2)
+    
+    # Tendência Temporal (índice sequencial normalizado)
+    df = df.sort_values('Data_Lancamento').reset_index(drop=True)
+    df['tendencia_temporal'] = np.arange(len(df)) / len(df)
+    
+    # Análise de padrões históricos por período
+    print("\n📊 Análise de Inadimplência por Período:")
+    
+    # Por mês
+    print("\n🗓️  Taxa de Prejuízo por Mês:")
+    taxa_prejuizo_mes = df.groupby('mes').agg({
+        'target_class': ['mean', 'count'],
+        'lucro': 'mean'
+    }).round(4)
+    taxa_prejuizo_mes.columns = ['Taxa_Lucrativo', 'N_Casos', 'Lucro_Medio']
+    taxa_prejuizo_mes['Taxa_Prejuizo'] = 1 - taxa_prejuizo_mes['Taxa_Lucrativo']
+    
+    meses_nome = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
+                  7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
+    
+    for mes_num in sorted(taxa_prejuizo_mes.index):
+        row = taxa_prejuizo_mes.loc[mes_num]
+        print(f"   {meses_nome[mes_num]:3s}: Prejuízo={row['Taxa_Prejuizo']:.1%} | "
+              f"Lucro Médio=R${row['Lucro_Medio']:>8,.0f} | N={row['N_Casos']:.0f}")
+    
+    # Por ano-mês (para ver evolução temporal)
+    print("\n📈 Taxa de Prejuízo por Ano-Mês (Períodos Críticos):")
+    anos_unicos = sorted(df['ano'].unique())
+    meses_criticos = [11, 12, 1, 2, 3]  # Nov a Mar
+    
+    for ano in anos_unicos:
+        print(f"\n   Ano {ano}:")
+        for mes_num in meses_criticos:
+            mask = (df['ano'] == ano) & (df['mes'] == mes_num)
+            if mask.sum() > 0:
+                taxa_prej = 1 - df.loc[mask, 'target_class'].mean()
+                lucro_medio = df.loc[mask, 'lucro'].mean()
+                n_casos = mask.sum()
+                print(f"      {meses_nome[mes_num]}: Prejuízo={taxa_prej:.1%} | "
+                      f"Lucro Médio=R${lucro_medio:>8,.0f} | N={n_casos}")
+    
+    # Comparação de períodos críticos vs normais
+    print("\n⚠️  Comparação Períodos Críticos vs Normais:")
+    for periodo_nome, periodo_col in [
+        ('Fim de Ano (Nov-Jan)', 'periodo_fim_ano'),
+        ('Carnaval (Fev-Mar)', 'periodo_carnaval'),
+        ('Período Crítico Completo', 'periodo_critico')
+    ]:
+        mask_periodo = df[periodo_col] == 1
+        mask_normal = df[periodo_col] == 0
+        
+        taxa_prej_periodo = 1 - df.loc[mask_periodo, 'target_class'].mean()
+        taxa_prej_normal = 1 - df.loc[mask_normal, 'target_class'].mean()
+        lucro_periodo = df.loc[mask_periodo, 'lucro'].mean()
+        lucro_normal = df.loc[mask_normal, 'lucro'].mean()
+        
+        print(f"\n   {periodo_nome}:")
+        print(f"      Prejuízo: {taxa_prej_periodo:.1%} (Período) vs {taxa_prej_normal:.1%} (Normal)")
+        print(f"      Lucro Médio: R${lucro_periodo:,.0f} vs R${lucro_normal:,.0f}")
+        print(f"      Diferença: {((taxa_prej_periodo - taxa_prej_normal) / taxa_prej_normal * 100):+.1f}% em prejuízo")
+    
+    # Features de agregação temporal (rolling statistics)
+    # Ordenar por data para calcular rolling
+    df_sorted = df.sort_values('Data_Lancamento').copy()
+    
+    # Calcular taxa de prejuízo dos últimos N contratos (aproximação de contexto temporal)
+    # Isso ajuda a capturar "momentum" de inadimplência
+    window_sizes = [30, 90, 180]  # Últimos 30, 90, 180 contratos
+    
+    for window in window_sizes:
+        df_sorted[f'prejuizo_rolling_{window}'] = (
+            df_sorted['target_class']
+            .rolling(window=window, min_periods=1)
+            .apply(lambda x: 1 - x.mean())
+        )
+        df_sorted[f'lucro_rolling_{window}'] = (
+            df_sorted['lucro']
+            .rolling(window=window, min_periods=1)
+            .mean()
+        )
+    
+    # Retornar ao índice original
+    df = df_sorted.sort_index()
+    
+    print("\n✅ Features temporais criadas com sucesso!")
+    print(f"   • Componentes básicos: ano, mês, trimestre, dia_semana, etc.")
+    print(f"   • Sazonalidade cíclica: sin/cos para mês, trimestre, dia_ano")
+    print(f"   • Períodos específicos: fim_ano, carnaval, período_crítico")
+    print(f"   • Interações: ano_mes (para capturar mudanças entre anos)")
+    print(f"   • Tendência temporal e rolling statistics")
+else:
+    print("⚠️  Coluna 'Data_Lancamento' não encontrada. Pulando engenharia temporal.")
 
 COLS_REMOVE = ['default', 'pago_perc', 'lucro', 'aceitar', 'adimplente',
                'contrato_id', 'proposta_id', 'Unnamed: 0',
                'Data_Lancamento', 'Data_inicio', 'target_class', 'target_upside', 'target_downside',
-               'inadimplente_total', 'adimplente_total', 'inadimplente_parcial', 'inad_parcial_lucrativo']
+               'inadimplente_total', 'adimplente_total', 'inadimplente_parcial', 'inad_parcial_lucrativo',
+               'lucro_faixa', 'ano_mes']  # ano_mes será tratado com get_dummies
 
 X = df.drop(columns=[c for c in COLS_REMOVE if c in df.columns])
 X = pd.get_dummies(X, drop_first=True)
@@ -113,6 +248,199 @@ for col in X.columns:
     X[col] = pd.to_numeric(X[col], errors='coerce')
 
 X = X.fillna(X.median())
+
+# --------------------------------------
+# ANOMALY DETECTION - CLIENTES NÃO-LUCRATIVOS
+# --------------------------------------
+print("\n" + "="*80)
+print("🔍 DETECTANDO ANOMALIAS - Clientes com Características Não-Lucrativas")
+print("="*80)
+print("Objetivo: Identificar padrões atípicos que levam a perdas severas (cauda longa)")
+
+# ESTRATÉGIA MELHORADA: Criar dataset balanceado focado em perdas extremas
+# Isolation Forest funciona melhor com oversampling de casos raros
+
+# 1. Identificar perdas severas (bottom 10% de lucro = piores casos)
+threshold_perda_severa = df['lucro'].quantile(0.10)
+mask_perda_severa = df['lucro'] <= threshold_perda_severa
+mask_lucrativo = df['lucro'] > 0
+mask_prejuizo_leve = (df['lucro'] <= 0) & (~mask_perda_severa)
+
+print(f"\n📊 Distribuição de Lucro:")
+print(f"   Total de casos: {len(df):,}")
+print(f"   Lucrativos (lucro > 0): {mask_lucrativo.sum():,} ({mask_lucrativo.mean():.1%})")
+print(f"   Prejuízos Leves (0 a P10): {mask_prejuizo_leve.sum():,} ({mask_prejuizo_leve.mean():.1%})")
+print(f"   Perdas Severas (≤ P10): {mask_perda_severa.sum():,} ({mask_perda_severa.mean():.1%})")
+print(f"   Threshold P10: R$ {threshold_perda_severa:,.2f}")
+
+# 2. SELEÇÃO DE FEATURES PARA ANOMALY DETECTION
+# Problema: 10,794 features é DEMAIS para Isolation Forest (curse of dimensionality)
+# Solução: Usar apenas features mais relevantes para lucro/prejuízo
+
+print(f"\n🔍 Selecionando features mais relevantes para Anomaly Detection...")
+print(f"   Total de features: {X.shape[1]:,}")
+
+# Calcular correlação de cada feature com lucro
+from sklearn.feature_selection import mutual_info_regression
+correlacoes_lucro = []
+for col in X.columns:
+    if X[col].std() > 0:  # Apenas features com variância
+        corr = np.corrcoef(X[col], df['lucro'])[0, 1]
+        correlacoes_lucro.append((col, abs(corr)))
+
+# Ordenar por correlação absoluta e pegar top features
+correlacoes_lucro = sorted(correlacoes_lucro, key=lambda x: x[1], reverse=True)
+top_n_features = 100  # Usar apenas 100 melhores features
+top_features = [feat for feat, corr in correlacoes_lucro[:top_n_features]]
+
+print(f"   Selecionadas: {len(top_features)} features mais correlacionadas com lucro")
+print(f"   Top 5 features: {[f[:30] for f in top_features[:5]]}")
+
+# Criar X reduzido
+X_reduced = X[top_features].copy()
+
+# 3. ESTRATÉGIA: Criar dataset BALANCEADO para treinar Isolation Forest
+# - Amostra de lucrativos (representar normalidade)
+# - Todos os prejuízos leves
+# - SOBREAMOSTRAR perdas severas (fazer elas "gritarem")
+
+n_sample_lucrativos = 3000
+n_replicas_severas = 5  # ↑ 3 → 5 (mais peso para perdas severas)
+
+X_sample_lucrativos = X_reduced[mask_lucrativo].sample(n=n_sample_lucrativos, random_state=42)
+X_prejuizo_leve = X_reduced[mask_prejuizo_leve].copy()
+X_perda_severa = X_reduced[mask_perda_severa].copy()
+
+# Replicar perdas severas para dar mais peso
+X_perda_severa_replicas = pd.concat([X_perda_severa] * n_replicas_severas, ignore_index=True)
+
+# Combinar tudo
+X_balanced = pd.concat([
+    X_sample_lucrativos,
+    X_prejuizo_leve,
+    X_perda_severa_replicas
+], ignore_index=True)
+
+print(f"\n🎯 Treinando Anomaly Detector com dataset balanceado...")
+print(f"   Features usadas: {X_balanced.shape[1]}")
+print(f"   Lucrativos (amostra): {len(X_sample_lucrativos):,}")
+print(f"   Prejuízos Leves: {len(X_prejuizo_leve):,}")
+print(f"   Perdas Severas (replicadas {n_replicas_severas}x): {len(X_perda_severa_replicas):,}")
+print(f"   Total para treino: {len(X_balanced):,}")
+print(f"   Proporção Perdas Severas: {len(X_perda_severa_replicas)/len(X_balanced):.1%}")
+
+# 4. Usar Isolation Forest otimizado
+anomaly_detector = IsolationForest(
+    n_estimators=500,      # Muitas árvores para estabilidade
+    max_samples=min(256, len(X_balanced)),  # ↓ 512→256 (mais foco em outliers)
+    contamination=0.20,    # ↑ 0.15→0.20 (mais permissivo)
+    max_features=min(50, X_balanced.shape[1]),  # Usar até 50 features por árvore
+    bootstrap=False,
+    n_jobs=-1,
+    random_state=42,
+    verbose=0
+)
+
+# Treinar no dataset balanceado
+anomaly_detector.fit(X_balanced)
+
+# 5. Calcular anomaly score para TODOS os dados originais (usando features reduzidas)
+# Score negativo = mais anômalo (maior risco de perda severa)
+anomaly_scores = anomaly_detector.decision_function(X_reduced)
+
+# 6. Normalizar scores para [0, 1], onde 1 = maior risco de anomalia (perda severa)
+# Usar percentis para normalização mais robusta
+p1 = np.percentile(anomaly_scores, 1)
+p99 = np.percentile(anomaly_scores, 99)
+anomaly_scores_norm = np.clip((anomaly_scores - p1) / (p99 - p1), 0, 1)
+anomaly_scores_norm = 1 - anomaly_scores_norm  # Inverter: 1 = alta anomalia (alto risco)
+
+# 6. Adicionar como nova feature
+X['anomaly_score'] = anomaly_scores_norm
+
+# 7. Validação detalhada: verificar se está funcionando
+print(f"\n🔬 Validação do Anomaly Detector:")
+print(f"   Range de scores originais: [{anomaly_scores.min():.4f}, {anomaly_scores.max():.4f}]")
+print(f"   Range normalizado: [{anomaly_scores_norm.min():.4f}, {anomaly_scores_norm.max():.4f}]")
+
+# Criar grupos por lucro (usar as mesmas máscaras)
+
+grupos = {
+    'Lucrativos (Lucro > 0)': mask_lucrativo,
+    'Prejuízos Leves (0 a P10)': mask_prejuizo_leve,
+    'Perdas Severas (≤ P10)': mask_perda_severa
+}
+
+print(f"\n✅ Anomaly Score por Grupo:")
+for nome, mask in grupos.items():
+    if mask.sum() > 0:
+        scores = anomaly_scores_norm[mask]
+        lucro_medio = df.loc[mask, 'lucro'].mean()
+        print(f"   {nome:28s}:")
+        print(f"      • Média Score: {scores.mean():.4f} | Mediana: {np.median(scores):.4f}")
+        print(f"      • Min: {scores.min():.4f} | Max: {scores.max():.4f}")
+        print(f"      • N casos: {mask.sum():,} | Lucro Médio: R$ {lucro_medio:,.0f}")
+
+# Calcular separação entre grupos (KS statistic ou diferença de médias)
+score_lucrativo = anomaly_scores_norm[mask_lucrativo].mean()
+score_severo = anomaly_scores_norm[mask_perda_severa].mean()
+separacao = abs(score_severo - score_lucrativo)
+
+print(f"\n📊 Métrica de Separação:")
+print(f"   Diferença Score (Severo - Lucrativo): {score_severo - score_lucrativo:+.4f}")
+print(f"   Separação Absoluta: {separacao:.4f}")
+if separacao < 0.1:
+    print(f"   ⚠️  ALERTA: Separação baixa! Anomaly detector pode não estar efetivo.")
+elif separacao < 0.2:
+    print(f"   ⚠️  Separação moderada. Considere ajustar parâmetros.")
+else:
+    print(f"   ✅ Boa separação! Detector está identificando padrões distintos.")
+
+# Análise de anomalias por faixa de lucro
+print("\n📈 Anomaly Score por Faixa de Lucro:")
+lucro_bins = [-np.inf, df['lucro'].quantile(0.1), 0, df['lucro'].quantile(0.9), np.inf]
+lucro_labels = ['Perdas Severas (P10)', 'Perdas Leves', 'Lucros Leves', 'Lucros Altos (P90)']
+df['lucro_faixa'] = pd.cut(df['lucro'], bins=lucro_bins, labels=lucro_labels)
+
+for faixa in lucro_labels:
+    mask_faixa = df['lucro_faixa'] == faixa
+    score_medio = anomaly_scores_norm[mask_faixa].mean()
+    n_casos = mask_faixa.sum()
+    print(f"   {faixa:25s}: {score_medio:.4f} ({n_casos:,} casos)")
+
+# Gráfico de diagnóstico rápido
+print("\n📊 Gerando gráfico de diagnóstico do Anomaly Detector...")
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# Subplot 1: Distribuição de scores por grupo
+ax1 = axes[0]
+for nome, mask in grupos.items():
+    if mask.sum() > 0:
+        ax1.hist(anomaly_scores_norm[mask], bins=50, alpha=0.5, label=nome)
+ax1.set_xlabel('Anomaly Score')
+ax1.set_ylabel('Frequência')
+ax1.set_title('Distribuição do Anomaly Score por Grupo')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+
+# Subplot 2: Boxplot por grupo
+ax2 = axes[1]
+data_boxplot = [anomaly_scores_norm[mask] for mask in grupos.values() if mask.sum() > 0]
+labels_boxplot = [nome.split('(')[0].strip() for nome, mask in grupos.items() if mask.sum() > 0]
+bp = ax2.boxplot(data_boxplot, labels=labels_boxplot, patch_artist=True)
+colors = ['green', 'orange', 'red']
+for patch, color in zip(bp['boxes'], colors):
+    patch.set_facecolor(color)
+    patch.set_alpha(0.6)
+ax2.set_ylabel('Anomaly Score')
+ax2.set_title('Distribuição do Anomaly Score por Grupo')
+ax2.grid(True, alpha=0.3, axis='y')
+plt.setp(ax2.xaxis.get_majorticklabels(), rotation=15, ha='right')
+
+plt.tight_layout()
+plt.savefig(f'{OUTPUT_DIR}/diagnostico_anomaly_detector.png', dpi=150, bbox_inches='tight')
+plt.close()
+print(f"   ✅ Salvo em: {OUTPUT_DIR}/diagnostico_anomaly_detector.png")
 
 # Split
 y_class = df['target_class'].values
@@ -433,12 +761,239 @@ plt.grid(True, alpha=0.3)
 plt.savefig(f'{OUTPUT_DIR}/analise_cauda_perdas.png')
 plt.close()
 
+# Gráfico 4: Análise do Anomaly Score
+fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+# 4.1: Distribuição do Anomaly Score por Classe
+ax1 = axes[0, 0]
+anomaly_test = X_test['anomaly_score'].values
+lucro_positivo = y_test_lucro > 0
+ax1.hist([anomaly_test[lucro_positivo], anomaly_test[~lucro_positivo]], 
+         bins=50, label=['Lucrativo', 'Prejuízo'], alpha=0.7, color=['green', 'red'])
+ax1.set_xlabel('Anomaly Score')
+ax1.set_ylabel('Frequência')
+ax1.set_title('Distribuição do Anomaly Score por Classe')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+
+# 4.2: Anomaly Score vs Lucro Real
+ax2 = axes[0, 1]
+scatter = ax2.scatter(anomaly_test, y_test_lucro, c=y_test_lucro, 
+                     cmap='RdYlGn', alpha=0.5, s=20)
+ax2.axhline(y=0, color='black', linestyle='--', linewidth=1)
+ax2.set_xlabel('Anomaly Score')
+ax2.set_ylabel('Lucro Real (R$)')
+ax2.set_title('Anomaly Score vs Lucro Real')
+plt.colorbar(scatter, ax=ax2, label='Lucro (R$)')
+ax2.grid(True, alpha=0.3)
+
+# 4.3: Anomaly Score por Faixa de Lucro
+ax3 = axes[1, 0]
+# Recriar as faixas para o conjunto de teste
+lucro_test_bins = [-np.inf, np.percentile(y_test_lucro, 10), 0, 
+                   np.percentile(y_test_lucro, 90), np.inf]
+lucro_test_labels = ['Perdas\nSeveras', 'Perdas\nLeves', 'Lucros\nLeves', 'Lucros\nAltos']
+lucro_test_faixa = pd.cut(y_test_lucro, bins=lucro_test_bins, labels=lucro_test_labels)
+
+anomaly_by_faixa = [anomaly_test[lucro_test_faixa == label].tolist() for label in lucro_test_labels]
+bp = ax3.boxplot(anomaly_by_faixa, labels=lucro_test_labels, patch_artist=True)
+colors = ['darkred', 'salmon', 'lightgreen', 'darkgreen']
+for patch, color in zip(bp['boxes'], colors):
+    patch.set_facecolor(color)
+    patch.set_alpha(0.6)
+ax3.set_ylabel('Anomaly Score')
+ax3.set_title('Anomaly Score por Faixa de Lucro')
+ax3.grid(True, alpha=0.3, axis='y')
+
+# 4.4: Top Anomalias - Perdas Reais
+ax4 = axes[1, 1]
+# Pegar top 20% mais anômalos e ver suas perdas reais
+threshold_anomaly = np.percentile(anomaly_test, 80)
+high_anomaly_mask = anomaly_test >= threshold_anomaly
+lucro_alto_anomaly = y_test_lucro[high_anomaly_mask]
+lucro_baixo_anomaly = y_test_lucro[~high_anomaly_mask]
+
+data_to_plot = [lucro_baixo_anomaly, lucro_alto_anomaly]
+bp2 = ax4.boxplot(data_to_plot, labels=['Anomaly < P80', 'Anomaly ≥ P80'], patch_artist=True)
+bp2['boxes'][0].set_facecolor('lightblue')
+bp2['boxes'][1].set_facecolor('orange')
+for box in bp2['boxes']:
+    box.set_alpha(0.6)
+ax4.axhline(y=0, color='black', linestyle='--', linewidth=1)
+ax4.set_ylabel('Lucro Real (R$)')
+ax4.set_title('Distribuição de Lucro: Baixa vs Alta Anomalia')
+ax4.grid(True, alpha=0.3, axis='y')
+
+plt.tight_layout()
+plt.savefig(f'{OUTPUT_DIR}/analise_anomaly_score.png', dpi=300, bbox_inches='tight')
+plt.close()
+
+print("\n📊 Análise do Anomaly Score:")
+print(f"   Correlação Anomaly Score vs Lucro: {np.corrcoef(anomaly_test, y_test_lucro)[0,1]:.4f}")
+print(f"   Lucro Médio (Baixa Anomalia < P80): R$ {lucro_baixo_anomaly.mean():,.2f}")
+print(f"   Lucro Médio (Alta Anomalia ≥ P80): R$ {lucro_alto_anomaly.mean():,.2f}")
+print(f"   % Prejuízo (Baixa Anomalia): {(lucro_baixo_anomaly < 0).mean():.1%}")
+print(f"   % Prejuízo (Alta Anomalia): {(lucro_alto_anomaly < 0).mean():.1%}")
+
+# Gráfico 5: Análise Temporal Detalhada
+if 'Data_Lancamento' in df.columns:
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # Preparar dados temporais do conjunto de teste
+    df_test = df.loc[X_test.index].copy()
+    df_test['lucro_real'] = y_test_lucro
+    df_test['ev_predito'] = expected_value
+    df_test['prejuizo'] = (y_test_lucro < 0).astype(int)
+    
+    # 5.1: Taxa de Prejuízo por Mês
+    ax1 = axes[0, 0]
+    prejuizo_mes = df_test.groupby('mes')['prejuizo'].agg(['mean', 'count'])
+    meses_ordem = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    prejuizo_mes = prejuizo_mes.reindex(meses_ordem, fill_value=0)
+    
+    colors = ['red' if m in [11, 12, 1, 2, 3] else 'lightblue' for m in prejuizo_mes.index]
+    bars = ax1.bar(prejuizo_mes.index, prejuizo_mes['mean'], color=colors, alpha=0.7)
+    ax1.set_xlabel('Mês')
+    ax1.set_ylabel('Taxa de Prejuízo')
+    ax1.set_title('Taxa de Prejuízo por Mês (Teste)\n(Vermelho = Período Crítico)')
+    ax1.set_xticks(meses_ordem)
+    ax1.set_xticklabels(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                        'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'])
+    ax1.grid(True, alpha=0.3, axis='y')
+    ax1.axhline(y=prejuizo_mes['mean'].mean(), color='black', linestyle='--', 
+                linewidth=1, label='Média Geral')
+    ax1.legend()
+    
+    # 5.2: Evolução Temporal (Ano-Mês)
+    ax2 = axes[0, 1]
+    if 'ano_mes' in df_test.columns:
+        # Agrupar por ano_mes e calcular métricas
+        temporal_agg = df_test.groupby('ano_mes').agg({
+            'prejuizo': 'mean',
+            'lucro_real': 'mean'
+        }).reset_index()
+        
+        # Ordenar cronologicamente
+        temporal_agg = temporal_agg.sort_values('ano_mes')
+        
+        # Limitar visualização para não ficar muito poluído
+        if len(temporal_agg) > 36:  # Mais de 3 anos
+            temporal_agg = temporal_agg.tail(36)  # Últimos 3 anos
+        
+        x_pos = np.arange(len(temporal_agg))
+        ax2.plot(x_pos, temporal_agg['prejuizo'], marker='o', linewidth=2, 
+                markersize=6, color='red', label='Taxa Prejuízo')
+        ax2.set_xlabel('Período (Ano-Mês)')
+        ax2.set_ylabel('Taxa de Prejuízo', color='red')
+        ax2.tick_params(axis='y', labelcolor='red')
+        ax2.set_xticks(x_pos[::3])  # Mostrar a cada 3 meses
+        ax2.set_xticklabels(temporal_agg['ano_mes'].iloc[::3], rotation=45, ha='right')
+        ax2.grid(True, alpha=0.3)
+        
+        # Segundo eixo Y para lucro médio
+        ax2_twin = ax2.twinx()
+        ax2_twin.plot(x_pos, temporal_agg['lucro_real'], marker='s', linewidth=2, 
+                     markersize=6, color='green', alpha=0.6, label='Lucro Médio')
+        ax2_twin.set_ylabel('Lucro Médio (R$)', color='green')
+        ax2_twin.tick_params(axis='y', labelcolor='green')
+        ax2_twin.axhline(y=0, color='black', linestyle='--', linewidth=1)
+        
+        ax2.set_title('Evolução Temporal: Prejuízo e Lucro por Período')
+        
+        # Combinar legendas
+        lines1, labels1 = ax2.get_legend_handles_labels()
+        lines2, labels2 = ax2_twin.get_legend_handles_labels()
+        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+    
+    # 5.3: Comparação Períodos Críticos
+    ax3 = axes[1, 0]
+    periodos = ['Normal', 'Fim de Ano\n(Nov-Jan)', 'Carnaval\n(Fev-Mar)']
+    
+    mask_normal = df_test['periodo_critico'] == 0
+    mask_fim_ano = df_test['periodo_fim_ano'] == 1
+    mask_carnaval = df_test['periodo_carnaval'] == 1
+    
+    taxa_prejuizo_periodos = [
+        df_test.loc[mask_normal, 'prejuizo'].mean(),
+        df_test.loc[mask_fim_ano, 'prejuizo'].mean(),
+        df_test.loc[mask_carnaval, 'prejuizo'].mean()
+    ]
+    
+    lucro_medio_periodos = [
+        df_test.loc[mask_normal, 'lucro_real'].mean(),
+        df_test.loc[mask_fim_ano, 'lucro_real'].mean(),
+        df_test.loc[mask_carnaval, 'lucro_real'].mean()
+    ]
+    
+    x_pos_periodos = np.arange(len(periodos))
+    bars1 = ax3.bar(x_pos_periodos - 0.2, taxa_prejuizo_periodos, 0.4, 
+                   label='Taxa Prejuízo', color='red', alpha=0.7)
+    
+    ax3_twin = ax3.twinx()
+    bars2 = ax3_twin.bar(x_pos_periodos + 0.2, lucro_medio_periodos, 0.4, 
+                        label='Lucro Médio', color='green', alpha=0.7)
+    
+    ax3.set_xlabel('Período')
+    ax3.set_ylabel('Taxa de Prejuízo', color='red')
+    ax3_twin.set_ylabel('Lucro Médio (R$)', color='green')
+    ax3.set_title('Comparação: Períodos Críticos vs Normal')
+    ax3.set_xticks(x_pos_periodos)
+    ax3.set_xticklabels(periodos)
+    ax3.tick_params(axis='y', labelcolor='red')
+    ax3_twin.tick_params(axis='y', labelcolor='green')
+    ax3_twin.axhline(y=0, color='black', linestyle='--', linewidth=1)
+    
+    # Combinar legendas
+    lines1, labels1 = ax3.get_legend_handles_labels()
+    lines2, labels2 = ax3_twin.get_legend_handles_labels()
+    ax3.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+    ax3.grid(True, alpha=0.3, axis='y')
+    
+    # 5.4: Heatmap Ano vs Mês
+    ax4 = axes[1, 1]
+    if 'ano' in df_test.columns and 'mes' in df_test.columns:
+        # Criar pivot table
+        heatmap_data = df_test.pivot_table(
+            values='prejuizo', 
+            index='ano', 
+            columns='mes', 
+            aggfunc='mean'
+        )
+        
+        # Garantir que todos os meses estejam presentes
+        for mes in range(1, 13):
+            if mes not in heatmap_data.columns:
+                heatmap_data[mes] = np.nan
+        
+        heatmap_data = heatmap_data[sorted(heatmap_data.columns)]
+        
+        sns.heatmap(heatmap_data, annot=True, fmt='.2f', cmap='RdYlGn_r', 
+                   center=heatmap_data.values[~np.isnan(heatmap_data.values)].mean(),
+                   cbar_kws={'label': 'Taxa de Prejuízo'}, ax=ax4)
+        ax4.set_xlabel('Mês')
+        ax4.set_ylabel('Ano')
+        ax4.set_title('Heatmap: Taxa de Prejuízo (Ano vs Mês)')
+        ax4.set_xticklabels(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                           'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'])
+    
+    plt.tight_layout()
+    plt.savefig(f'{OUTPUT_DIR}/analise_temporal_detalhada.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print("\n📅 Análise Temporal Salva!")
+
 # Salvar Resumo
 with open(f'{OUTPUT_DIR}/resumo_profit_loss.txt', 'w') as f:
-    f.write("MODELO PROFIT-LOSS HURDLE\n")
-    f.write("=========================\n\n")
+    f.write("MODELO PROFIT-LOSS HURDLE COM ANOMALY DETECTION\n")
+    f.write("===============================================\n\n")
     f.write(f"AUC Classificador: {auc_score:.4f}\n")
     f.write(f"Correlação EV vs Real: {correlation:.4f}\n\n")
+    f.write("ANOMALY DETECTION (Cauda Longa de Perdas):\n")
+    f.write(f"Correlação Anomaly Score vs Lucro: {np.corrcoef(anomaly_test, y_test_lucro)[0,1]:.4f}\n")
+    f.write(f"Lucro Médio (Baixa Anomalia): R$ {lucro_baixo_anomaly.mean():,.2f}\n")
+    f.write(f"Lucro Médio (Alta Anomalia): R$ {lucro_alto_anomaly.mean():,.2f}\n")
+    f.write(f"% Prejuízo (Baixa Anomalia): {(lucro_baixo_anomaly < 0).mean():.1%}\n")
+    f.write(f"% Prejuízo (Alta Anomalia): {(lucro_alto_anomaly < 0).mean():.1%}\n\n")
     f.write("RESULTADOS FINANCEIROS:\n")
     f.write(f"Lucro Baseline: R$ {baseline_profit:,.2f}\n")
     f.write(f"Lucro Otimizado: R$ {max_profit:,.2f}\n")
@@ -455,7 +1010,7 @@ print("\n" + "="*60)
 print("💾 SALVANDO MODELOS PARA PRODUÇÃO")
 print("="*60)
 
-MODEL_DIR = '../modelos/profit_loss_hurdle'
+MODEL_DIR = '../../modelos_treinados/PROFIT_LOSS_HURDLE'
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 import joblib
@@ -485,10 +1040,15 @@ reg_down_cat.save_model(f'{MODEL_DIR}/reg_downside_cat.cbm')
 print("   Salvando scaler...")
 joblib.dump(scaler, f'{MODEL_DIR}/scaler.pkl')
 
+# 4.5. Anomaly Detector e suas dependências
+print("   Salvando anomaly detector e features...")
+joblib.dump(anomaly_detector, f'{MODEL_DIR}/anomaly_detector.pkl')
+joblib.dump(top_features, f'{MODEL_DIR}/anomaly_detector_features.pkl')  # Features usadas
+
 # 5. Metadados e Configuração
 print("   Salvando metadados...")
 metadata = {
-    'model_name': 'Profit-Loss Hurdle Model',
+    'model_name': 'Profit-Loss Hurdle Model with Anomaly Detection',
     'trained_date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
     'n_features': len(X.columns),
     'feature_names': X.columns.tolist(),
@@ -498,14 +1058,32 @@ metadata = {
         'auc_cat': float(auc_cat),
         'auc_ensemble': float(auc_score),
         'correlation_ev_real': float(correlation),
-        'mae_ev': float(mae_ev)
+        'mae_ev': float(mae_ev),
+        'anomaly_score_correlation': float(np.corrcoef(anomaly_test, y_test_lucro)[0,1])
+    },
+    'anomaly_detection': {
+        'method': 'Isolation Forest with feature selection and balanced dataset',
+        'contamination': 0.20,
+        'n_estimators': 500,
+        'n_features_selected': len(top_features),
+        'max_features_per_tree': min(50, len(top_features)),
+        'training_strategy': 'oversampled_severe_losses_5x',
+        'replicas_severe': 5,
+        'avg_score_profitable': float(anomaly_scores_norm[mask_lucrativo].mean()),
+        'avg_score_light_loss': float(anomaly_scores_norm[mask_prejuizo_leve].mean()),
+        'avg_score_severe_loss': float(anomaly_scores_norm[mask_perda_severa].mean()),
+        'separation_score': float(abs(anomaly_scores_norm[mask_perda_severa].mean() - anomaly_scores_norm[mask_lucrativo].mean()))
     },
     'business_metrics': {
         'baseline_profit': float(baseline_profit),
         'optimized_profit': float(max_profit),
         'gain': float(max_profit - baseline_profit),
         'threshold_ev': float(best_threshold_ev),
-        'approval_rate': float(contracts_accepted/len(results_df))
+        'approval_rate': float(contracts_accepted/len(results_df)),
+        'profit_low_anomaly': float(lucro_baixo_anomaly.mean()),
+        'profit_high_anomaly': float(lucro_alto_anomaly.mean()),
+        'loss_rate_low_anomaly': float((lucro_baixo_anomaly < 0).mean()),
+        'loss_rate_high_anomaly': float((lucro_alto_anomaly < 0).mean())
     },
     'ensemble_weights': {
         'classifier': {'lgb': 0.4, 'xgb': 0.35, 'cat': 0.25},
@@ -515,7 +1093,9 @@ metadata = {
     'training_samples': {
         'total': int(len(X_train)),
         'upside': int(len(X_train_up)),
-        'downside': int(len(X_train_down))
+        'downside': int(len(X_train_down)),
+        'anomaly_training': int(len(X_balanced)),  # Dataset balanceado
+        'severe_losses': int(mask_perda_severa.sum())
     }
 }
 
@@ -525,8 +1105,10 @@ with open(f'{MODEL_DIR}/metadata.json', 'w', encoding='utf-8') as f:
 print(f"\n✅ Modelos salvos com sucesso em: {MODEL_DIR}")
 print(f"   • 9 modelos (3 classificadores + 3 reg_upside + 3 reg_downside)")
 print(f"   • 1 scaler")
+print(f"   • 1 anomaly detector (Isolation Forest)")
+print(f"   • 1 lista de features do anomaly detector")
 print(f"   • 1 arquivo de metadados")
-print(f"   Total: 11 arquivos para produção")
+print(f"   Total: 13 arquivos para produção")
 
 # --------------------------------------
 # 8. INTERPRETABILIDADE E ANÁLISE DE DECISÕES

@@ -14,6 +14,25 @@ env/
 
 # Data files (não enviar dados sensíveis)
 data/*.csv
+data/*.xlsx
+data/*.xls
+data/dataset_interno/
+data/datasets_tratados/*.csv
+data/teste_externo/datasets_tratados/*.csv
+data/geolocalizacao_vetorial/*.shp
+data/geolocalizacao_vetorial/*.dbf
+data/geolocalizacao_vetorial/*.shx
+data/geolocalizacao_vetorial/*.prj
+data/external_data/**/*.csv
+data/results/*.csv
+
+# Modelos treinados grandes (mas mantém metadata.json)
+modelos_treinados/**/*.txt
+modelos_treinados/**/*.cbm
+modelos_treinados/**/*.h5
+modelos_treinados/**/*.pkl
+modelos_treinados/**/*.json
+!modelos_treinados/**/metadata.json
 
 # IDE
 .vscode/

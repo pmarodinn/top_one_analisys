@@ -71,7 +71,7 @@ print("="*80)
 # --------------------------------------
 # 1. CARREGAMENTO E PREPARAÇÃO
 # --------------------------------------
-DATA_FILE = '../../data/dataset_interno_top_one_atualizado.csv'
+DATA_FILE = '../../data/datasets_tratados/dataset_interno_top_one_final.csv'
 df = load_and_preprocess_v3(DATA_FILE)
 
 # Definição dos Targets
@@ -125,9 +125,94 @@ print("🕵️  DETECÇÃO DE ANOMALIAS (Feature Engineering)")
 print("="*60)
 print("   Gerando 'anomaly_score' para capturar clientes fora do padrão...")
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CONTAMINAÇÃO: TAXA REAL DE PADRÕES ANÔMALOS (NÃO-GAUSSIANOS)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 🎯 PROBLEMA: Distribuição DESBALANCEADA (Classe Minoritária)
+#
+# POPULAÇÃO:
+# ├─ Adimplentes (~80%)           ← MAIORIA
+# └─ Inadimplentes (~20%)         ← MINORIA
+#    ├─ Inadimplentes Lucrativos  ← Pagam parte, mas lucro positivo
+#    └─ Inadimplentes Prejuízo    ← MINORIA DA MINORIA (padrão raro)
+#
+# 🔍 O QUE É "ANÔMALO"?
+# NÃO é o valor do prejuízo (R$ 10k vs R$ 1k)
+# SIM é a RARIDADE do comportamento que causa prejuízo
+#
+# 💡 ISOLATION FOREST:
+# - Detecta padrões estatisticamente RAROS na distribuição multidimensional
+# - "Contamination" = % de observações que seguem padrões atípicos
+# - Baseado na FREQUÊNCIA do padrão, não no impacto financeiro
+#
+# 📊 CÁLCULO:
+# contamination = (Contratos com Prejuízo) / (Total de Contratos)
+#
+# Isso captura a RARIDADE REAL do evento problemático nos dados de treino
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Análise da distribuição de classes
+total_contracts = len(y_train_lucro)
+profitable_contracts = np.sum(y_train_lucro > 0)
+loss_contracts = np.sum(y_train_lucro <= 0)
+
+# Taxa REAL de contratos problemáticos (que causam prejuízo)
+contamination_rate = loss_contracts / total_contracts
+contamination_rate = np.clip(contamination_rate, 0.01, 0.5)  # Entre 1% e 50%
+
+# Estatísticas descritivas
+if loss_contracts > 0:
+    losses_abs = np.abs(y_train_lucro[y_train_lucro <= 0])
+    mean_loss = losses_abs.mean()
+    median_loss = np.median(losses_abs)
+    max_loss = losses_abs.max()
+    p95_loss = np.percentile(losses_abs, 95)
+else:
+    mean_loss = median_loss = max_loss = p95_loss = 0
+
+print(f"   📊 ANÁLISE DA DISTRIBUIÇÃO (DESBALANCEAMENTO):")
+print(f"   " + "─" * 56)
+print(f"      Total de contratos: {total_contracts:,}")
+print(f"      ✅ Contratos Lucrativos: {profitable_contracts:,} ({profitable_contracts/total_contracts:.1%})")
+print(f"      ❌ Contratos com Prejuízo: {loss_contracts:,} ({loss_contracts/total_contracts:.1%})")
+print(f"   ")
+print(f"   🎯 DEFINIÇÃO DE 'ANÔMALO' (Isolation Forest):")
+print(f"   " + "─" * 56)
+print(f"      • NÃO é sobre o VALOR da perda (R$ grande vs pequeno)")
+print(f"      • SIM é sobre a RARIDADE do padrão comportamental")
+print(f"      • Contamination = % de contratos com prejuízo")
+print(f"      • Taxa calculada: {contamination_rate:.1%}")
+print(f"   ")
+
+if loss_contracts > 0:
+    print(f"   💰 ESTATÍSTICAS DE PREJUÍZO (Para referência VaR):")
+    print(f"   " + "─" * 56)
+    print(f"      Prejuízo médio: R$ {mean_loss:,.2f}")
+    print(f"      Prejuízo mediano: R$ {median_loss:,.2f}")
+    print(f"      Prejuízo P95: R$ {p95_loss:,.2f}")
+    print(f"      Prejuízo máximo: R$ {max_loss:,.2f}")
+    print(f"      (Usado no Regressor Downside para ponderação de risco)")
+
+# Guardar para metadados
+extreme_loss_stats = {
+    'contamination_rate': float(contamination_rate),
+    'total_contracts': int(total_contracts),
+    'profitable_contracts': int(profitable_contracts),
+    'loss_contracts': int(loss_contracts),
+    'mean_loss': float(mean_loss),
+    'median_loss': float(median_loss),
+    'p95_loss': float(p95_loss),
+    'max_loss': float(max_loss)
+}
+
 # Isolation Forest para detectar outliers multidimensionais (Cauda Longa)
-# Contamination=0.05 assume que 5% dos dados são "estranhos"
-iso_forest = IsolationForest(n_estimators=200, contamination=0.05, random_state=42, n_jobs=-1)
+iso_forest = IsolationForest(
+    n_estimators=200, 
+    contamination=contamination_rate,  # Agora é DINÂMICO!
+    random_state=42, 
+    n_jobs=-1
+)
 
 # Fit apenas no treino para evitar Data Leakage
 iso_forest.fit(X_train)
@@ -137,7 +222,7 @@ iso_forest.fit(X_train)
 X_train['anomaly_score'] = -iso_forest.decision_function(X_train)
 X_test['anomaly_score'] = -iso_forest.decision_function(X_test)
 
-print(f"   Feature 'anomaly_score' adicionada. Média Treino: {X_train['anomaly_score'].mean():.4f}")
+print(f"   ✓ Feature 'anomaly_score' adicionada. Média Treino: {X_train['anomaly_score'].mean():.4f}")
 
 # --------------------------------------
 # 3. PREPARAÇÃO DOS SUBSETS (PÓS-ISOLATION FOREST)
@@ -534,9 +619,17 @@ with open(f'{OUTPUT_DIR}/resumo_v2_risk_adjusted.txt', 'w', encoding='utf-8') as
     
     f.write("🔬 INOVAÇÕES IMPLEMENTADAS:\n")
     f.write("-" * 80 + "\n")
-    f.write("1. Isolation Forest (Detecção de Anomalias)\n")
-    f.write(f"   • Feature 'anomaly_score' criada para identificar clientes atípicos\n")
-    f.write(f"   • Contamination: 5% (assumindo que 5% dos dados são outliers)\n")
+    f.write("1. Isolation Forest (Detecção de Anomalias - Distribuição Desbalanceada)\n")
+    f.write(f"   • Feature 'anomaly_score' para identificar padrões comportamentais RAROS\n")
+    f.write(f"   • Contamination: {contamination_rate:.1%} (taxa real de contratos com prejuízo)\n")
+    f.write(f"   • Foco: RARIDADE do comportamento, não magnitude da perda\n")
+    f.write(f"   • Distribuição:\n")
+    f.write(f"     - Contratos Lucrativos: {extreme_loss_stats['profitable_contracts']:,} ({extreme_loss_stats['profitable_contracts']/extreme_loss_stats['total_contracts']:.1%})\n")
+    f.write(f"     - Contratos com Prejuízo: {extreme_loss_stats['loss_contracts']:,} ({extreme_loss_stats['loss_contracts']/extreme_loss_stats['total_contracts']:.1%}) ← MINORITÁRIOS\n")
+    f.write(f"   • Estatísticas de Prejuízo (para VaR):\n")
+    f.write(f"     - Prejuízo médio: R$ {extreme_loss_stats['mean_loss']:,.2f}\n")
+    f.write(f"     - Prejuízo P95: R$ {extreme_loss_stats['p95_loss']:,.2f}\n")
+    f.write(f"     - Prejuízo máximo: R$ {extreme_loss_stats['max_loss']:,.2f}\n")
     f.write(f"   • Média anomaly_score no teste: {X_test['anomaly_score'].mean():.4f}\n\n")
     
     f.write("2. Quantile Regression (P95) para Downside\n")
@@ -583,6 +676,106 @@ with open(f'{OUTPUT_DIR}/resumo_v2_risk_adjusted.txt', 'w', encoding='utf-8') as
     f.write("• Ideal para cenários onde evitar grandes perdas é prioritário\n")
 
 print(f"\n✅ Processo V2 PESADO concluído! Verifique '{OUTPUT_DIR}'")
+
+# --------------------------------------
+# 9. SALVANDO MODELOS PARA PRODUÇÃO
+# --------------------------------------
+print("\n" + "="*60)
+print("💾 SALVANDO MODELOS PARA PRODUÇÃO")
+print("="*60)
+
+MODEL_DIR = '../../modelos_treinados/lucro_anomaly'
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+import joblib
+import json
+
+print("\n📦 Salvando modelos treinados...")
+
+# Salvar Isolation Forest
+joblib.dump(iso_forest, f'{MODEL_DIR}/isolation_forest.pkl')
+print("   ✓ Isolation Forest salvo")
+
+# Salvar Classificadores
+lgb_clf.booster_.save_model(f'{MODEL_DIR}/clf_lgb.txt')
+xgb_clf.save_model(f'{MODEL_DIR}/clf_xgb.json')
+cat_clf.save_model(f'{MODEL_DIR}/clf_cat.cbm')
+print("   ✓ Classificadores salvos (LGBM + XGB + CatBoost)")
+
+# Salvar Regressores Upside
+reg_up_lgb.booster_.save_model(f'{MODEL_DIR}/reg_upside_lgb.txt')
+reg_up_xgb.save_model(f'{MODEL_DIR}/reg_upside_xgb.json')
+reg_up_cat.save_model(f'{MODEL_DIR}/reg_upside_cat.cbm')
+print("   ✓ Regressores Upside salvos (LGBM + XGB + CatBoost)")
+
+# Salvar Regressores Downside (Quantile)
+reg_down_lgb.booster_.save_model(f'{MODEL_DIR}/reg_downside_quantile_lgb.txt')
+reg_down_xgb.save_model(f'{MODEL_DIR}/reg_downside_quantile_xgb.json')
+reg_down_cat.save_model(f'{MODEL_DIR}/reg_downside_quantile_cat.cbm')
+print("   ✓ Regressores Downside (Quantile P95) salvos (LGBM + XGB + CatBoost)")
+
+# Salvar Scaler
+joblib.dump(scaler, f'{MODEL_DIR}/scaler.pkl')
+print("   ✓ Scaler salvo")
+
+# Salvar metadados
+metadata = {
+    'model_version': 'lucro_anomaly_v2_heavy',
+    'training_date': pd.Timestamp.now().isoformat(),
+    'features': list(X_train_scaled.columns),
+    'n_features': len(X_train_scaled.columns),
+    'ensemble_weights': {
+        'lgbm': 0.4,
+        'xgboost': 0.35,
+        'catboost': 0.25
+    },
+    'quantile_alpha': ALPHA_RISK,
+    'model_counts': {
+        'classifier': 3,
+        'upside_regressor': 3,
+        'downside_regressor': 3,
+        'total': 9
+    },
+    'total_trees': {
+        'classifier': 15000,
+        'upside': 18000,
+        'downside': 18000,
+        'total': 51000
+    },
+    'isolation_forest': {
+        'n_estimators': 200,
+        'contamination': float(contamination_rate),
+        'contamination_method': 'real_loss_rate',
+        'contamination_explanation': 'Percentage of contracts with loss (rare behavioral pattern)',
+        'focus': 'Rarity of loss-causing behavior, not loss magnitude',
+        'statistics': extreme_loss_stats
+    },
+    'performance': {
+        'auc_lgb': float(auc_lgb),
+        'auc_xgb': float(auc_xgb),
+        'auc_cat': float(auc_cat),
+        'auc_ensemble': float(auc_ensemble),
+        'baseline_profit': float(baseline_profit),
+        'optimized_profit': float(max_profit),
+        'gain_absolute': float(max_profit - baseline_profit),
+        'gain_percentage': float((max_profit - baseline_profit)/baseline_profit * 100),
+        'approval_rate': float(approval_rate),
+        'best_threshold_ev': float(best_threshold_ev)
+    }
+}
+
+with open(f'{MODEL_DIR}/metadata.json', 'w', encoding='utf-8') as f:
+    json.dump(metadata, f, indent=2, ensure_ascii=False)
+print("   ✓ Metadados salvos")
+
+print(f"\n✅ Todos os modelos salvos em: {MODEL_DIR}")
+print("   📂 Arquivos gerados:")
+print("      • isolation_forest.pkl")
+print("      • clf_lgb.txt, clf_xgb.json, clf_cat.cbm")
+print("      • reg_upside_lgb.txt, reg_upside_xgb.json, reg_upside_cat.cbm")
+print("      • reg_downside_quantile_lgb.txt, reg_downside_quantile_xgb.json, reg_downside_quantile_cat.cbm")
+print("      • scaler.pkl")
+print("      • metadata.json")
 
 print("\n" + "="*80)
 print("⚙️  CONFIGURAÇÃO DO MODELO PESADO")

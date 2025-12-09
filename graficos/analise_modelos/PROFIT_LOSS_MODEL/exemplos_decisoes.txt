@@ -1,0 +1,96 @@
+================================================================================
+EXEMPLOS DE DECISÕES INDIVIDUAIS - MODELO PROFIT-LOSS HURDLE
+================================================================================
+
+
+1️⃣ MELHOR CASO (Alto EV, Alto Lucro Real)
+--------------------------------------------------------------------------------
+📍 Índice Original: 24996
+💰 Lucro Real: R$ 5801.36
+🎯 Valor Esperado (EV): R$ 3755.18
+📊 P(Lucrativo): 94.68%
+📈 Upside Predito: R$ 4083.99
+📉 Downside Predito: R$ 2091.96
+🚦 Decisão: ✅ ACEITAR (Threshold: R$ 27.03)
+
+🔍 Top 10 Features deste Contrato:
+   • populacao: 2568928.0000
+   • renda_cliente: 5000.0000
+   • densidade_pop: 3709.1666
+   • valor_financiado: 3648.0000
+   • ano: 2023.0000
+   • data_ano: 2023.0000
+   • score_SPC: 869.0000
+   • area: 692.5890
+   • valor_cestabasica: 575.8100
+   • valor_inicial_da_prestacao: 469.4300
+
+
+2️⃣ PIOR CASO (Baixo EV, Grande Prejuízo)
+--------------------------------------------------------------------------------
+📍 Índice Original: 1494
+💰 Lucro Real: R$ -3034.64
+🎯 Valor Esperado (EV): R$ -2993.60
+📊 P(Lucrativo): 13.63%
+📈 Upside Predito: R$ 2056.16
+📉 Downside Predito: R$ 3790.20
+🚦 Decisão: ❌ REJEITAR (Threshold: R$ 27.03)
+
+🔍 Top 10 Features deste Contrato:
+   • populacao: 9628.0000
+   • ranking_nacional: 3070.0000
+   • valor_financiado: 2228.9000
+   • ano: 2023.0000
+   • data_ano: 2023.0000
+   • renda_cliente: 1300.0000
+   • valor_cestabasica: 679.7600
+   • score_SPC: 473.0000
+   • lucro_rolling_30: 455.9777
+   • lucro_rolling_90: 380.0602
+
+
+3️⃣ FALSO POSITIVO (Alto EV, mas Prejuízo Real)
+--------------------------------------------------------------------------------
+📍 Índice Original: 32040
+💰 Lucro Real: R$ -5059.30
+🎯 Valor Esperado (EV): R$ 543.71
+📊 P(Lucrativo): 65.84%
+📈 Upside Predito: R$ 2562.49
+📉 Downside Predito: R$ 3347.05
+🚦 Decisão: ✅ ACEITAR (Threshold: R$ 27.03)
+
+🔍 Top 10 Features deste Contrato:
+   • populacao: 44323.0000
+   • renda_cliente: 3500.0000
+   • ano: 2023.0000
+   • data_ano: 2023.0000
+   • ranking_nacional: 1398.0000
+   • valor_financiado: 1345.0000
+   • area: 1326.6700
+   • valor_cestabasica: 675.0100
+   • score_SPC: 541.0000
+   • lucro_rolling_30: 484.1453
+
+
+4️⃣ FALSO NEGATIVO (Baixo EV, mas Lucro Real)
+--------------------------------------------------------------------------------
+📍 Índice Original: 47303
+💰 Lucro Real: R$ 8047.96
+🎯 Valor Esperado (EV): R$ -238.18
+📊 P(Lucrativo): 38.01%
+📈 Upside Predito: R$ 1351.55
+📉 Downside Predito: R$ 1213.12
+🚦 Decisão: ❌ REJEITAR (Threshold: R$ 27.03)
+
+🔍 Top 10 Features deste Contrato:
+   • populacao: 35534.0000
+   • renda_cliente: 3000.0000
+   • valor_financiado: 2045.0000
+   • ano: 2023.0000
+   • data_ano: 2023.0000
+   • valor_cestabasica: 758.5000
+   • score_SPC: 674.0000
+   • dia_ano: 328.0000
+   • valor_inicial_da_prestacao: 256.6300
+   • area: 212.0450
+

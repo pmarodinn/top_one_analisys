@@ -4,10 +4,18 @@ MODELO PROFIT-LOSS HURDLE V2: RISK-ADJUSTED (QUANTILE P95)
 
 🔬 INOVAÇÕES IMPLEMENTADAS:
 --------------------------------------------------------------------------------
-1. Isolation Forest (Detecção de Anomalias)
-   • Feature 'anomaly_score' criada para identificar clientes atípicos
-   • Contamination: 5% (assumindo que 5% dos dados são outliers)
-   • Média anomaly_score no teste: -0.0107
+1. Isolation Forest (Detecção de Anomalias - Distribuição Desbalanceada)
+   • Feature 'anomaly_score' para identificar padrões comportamentais RAROS
+   • Contamination: 21.1% (taxa real de contratos com prejuízo)
+   • Foco: RARIDADE do comportamento, não magnitude da perda
+   • Distribuição:
+     - Contratos Lucrativos: 33,454 (78.9%)
+     - Contratos com Prejuízo: 8,934 (21.1%) ← MINORITÁRIOS
+   • Estatísticas de Prejuízo (para VaR):
+     - Prejuízo médio: R$ 1,182.29
+     - Prejuízo P95: R$ 2,824.35
+     - Prejuízo máximo: R$ 9,438.34
+   • Média anomaly_score no teste: -0.0047
 
 2. Quantile Regression (P95) para Downside
    • Objetivo: Prever o 'quase pior caso' (95º percentil de risco)
@@ -24,34 +32,34 @@ MODELO PROFIT-LOSS HURDLE V2: RISK-ADJUSTED (QUANTILE P95)
 📊 RESULTADOS DE PERFORMANCE:
 --------------------------------------------------------------------------------
 AUC Classificador:
-   • LGBM: 0.7588
-   • XGBoost: 0.7594
-   • CatBoost: 0.7608
-   • Ensemble: 0.7611
+   • LGBM: 0.7381
+   • XGBoost: 0.7387
+   • CatBoost: 0.7380
+   • Ensemble: 0.7394
 
 
 💰 RESULTADOS FINANCEIROS:
 --------------------------------------------------------------------------------
-Lucro Baseline (Aceitar Todos): R$ 2,444,397.21
-Lucro Otimizado (Risk-Adjusted): R$ 2,652,199.94
-Ganho Absoluto: R$ 207,802.73
-Ganho Percentual: 8.5%
-Threshold de EV: R$ -188.98
-Taxa de Aprovação: 87.2% (8061/9241)
+Lucro Baseline (Aceitar Todos): R$ 3,064,407.18
+Lucro Otimizado (Risk-Adjusted): R$ 3,255,441.83
+Ganho Absoluto: R$ 191,034.65
+Ganho Percentual: 6.2%
+Threshold de EV: R$ -447.96
+Taxa de Aprovação: 94.3% (9997/10598)
 
 
 🎯 TOP 10 FEATURES MAIS IMPORTANTES (DOWNSIDE/RISCO):
 --------------------------------------------------------------------------------
-   valor_financiado                         | 21030.00
-   valor_inicial_da_prestacao               | 20357.00
-   idade                                    | 18938.00
-   score_SPC                                | 16890.00
-   anomaly_score                            | 15597.00
-   salario_perc                             | 14613.00
-   preco_cb_perc                            |  9878.00
-   area                                     |  9271.00
-   valor_cestabasica                        |  8922.00
-   Score_MC                                 |  8900.00
+   valor_inicial_da_prestacao               | 27953.00
+   valor_financiado                         | 27556.00
+   idade                                    | 24853.00
+   score_SPC                                | 23261.00
+   anomaly_score                            | 21052.00
+   salario_perc                             | 18520.00
+   area                                     | 13538.00
+   preco_cb_perc                            | 13415.00
+   valor_cestabasica                        | 13148.00
+   plano_financiamento                      |  9880.00
 
 
 ✅ CONCLUSÃO:
