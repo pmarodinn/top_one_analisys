@@ -335,39 +335,82 @@ def plot_profissoes_comuns(df):
 
 
 def plot_itens_comprados(df):
-    """Gráfico dos itens/mercadorias mais comprados"""
+    """Gráfico das categorias de produtos mais compradas"""
     print("\n" + "="*80)
-    print("ANÁLISE DE PRODUTOS/MERCADORIAS")
+    print("ANÁLISE DE CATEGORIAS DE PRODUTOS")
     print("="*80)
     
-    if 'Mercadoria' not in df.columns:
-        print("⚠ AVISO: Coluna 'Mercadoria' não encontrada")
+    # Priorizar coluna 'categorias' (normalizada) ao invés de 'Mercadoria' (com variações)
+    if 'categorias' in df.columns:
+        print("✓ Usando coluna 'categorias' (normalizada)")
+        
+        # Expandir listas de categorias (um contrato pode ter múltiplas categorias)
+        from collections import Counter
+        todas_categorias = []
+        for cats in df['categorias'].dropna():
+            if isinstance(cats, list):
+                todas_categorias.extend(cats)
+            elif isinstance(cats, str):
+                # Se for string, pode estar em formato de lista
+                try:
+                    import ast
+                    cats_list = ast.literal_eval(cats) if cats.startswith('[') else [cats]
+                    todas_categorias.extend(cats_list)
+                except:
+                    todas_categorias.append(cats)
+        
+        if not todas_categorias:
+            print("⚠ AVISO: Nenhuma categoria encontrada")
+            return
+        
+        # Contar categorias
+        contador = Counter(todas_categorias)
+        top_categorias = dict(contador.most_common(25))
+        
+        print(f"\n--- Top 25 Categorias Mais Compradas ---")
+        print(f"Total de contratos analisados: {len(df):,}")
+        print(f"Total de categorias (pode haver múltiplas por contrato): {len(todas_categorias):,}")
+        for i, (item, count) in enumerate(top_categorias.items(), 1):
+            perc = count / len(todas_categorias) * 100
+            print(f"{i:2d}. {item:50s} - {count:5d} ocorrências ({perc:5.2f}%)")
+        
+        # Preparar dados para o gráfico
+        categorias_nomes = list(top_categorias.keys())
+        categorias_valores = list(top_categorias.values())
+        
+    elif 'Mercadoria' in df.columns:
+        print("⚠ Usando coluna 'Mercadoria' (pode ter duplicatas por variações de texto)")
+        mercadorias = df['Mercadoria'].dropna()
+        top_mercadorias = mercadorias.value_counts().head(25)
+        
+        print(f"\n--- Top 25 Itens/Mercadorias Mais Comprados ---")
+        for i, (item, count) in enumerate(top_mercadorias.items(), 1):
+            perc = count / len(df) * 100
+            print(f"{i:2d}. {item:50s} - {count:5d} contratos ({perc:5.2f}%)")
+        
+        categorias_nomes = list(top_mercadorias.index)
+        categorias_valores = list(top_mercadorias.values)
+    else:
+        print("⚠ ERRO: Nem 'categorias' nem 'Mercadoria' encontradas")
         return
-    
-    mercadorias = df['Mercadoria'].dropna()
-    top_mercadorias = mercadorias.value_counts().head(25)
-    
-    print(f"\n--- Top 25 Itens/Mercadorias Mais Comprados ---")
-    for i, (item, count) in enumerate(top_mercadorias.items(), 1):
-        perc = count / len(df) * 100
-        print(f"{i:2d}. {item:50s} - {count:5d} contratos ({perc:5.2f}%)")
     
     # Gráfico
     fig, ax = plt.subplots(figsize=(14, 12))
-    y_pos = range(len(top_mercadorias))
-    colors = plt.cm.plasma(np.linspace(0.2, 0.9, len(top_mercadorias)))
+    y_pos = range(len(categorias_nomes))
+    colors = plt.cm.plasma(np.linspace(0.2, 0.9, len(categorias_nomes)))
     
-    ax.barh(y_pos, top_mercadorias.values, color=colors, edgecolor='black')
+    ax.barh(y_pos, categorias_valores, color=colors, edgecolor='black')
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(top_mercadorias.index, fontsize=9)
-    ax.set_xlabel("Número de Contratos", fontsize=12, fontweight='bold')
-    ax.set_title("Top 25 Itens/Mercadorias Mais Comprados", fontsize=14, fontweight='bold')
+    ax.set_yticklabels(categorias_nomes, fontsize=9)
+    ax.set_xlabel("Número de Ocorrências", fontsize=12, fontweight='bold')
+    ax.set_title("Top 25 Categorias de Produtos Mais Compradas", fontsize=14, fontweight='bold')
     ax.invert_yaxis()
     ax.grid(True, alpha=0.3, axis='x')
     
     # Adicionar valores nas barras
-    for i, v in enumerate(top_mercadorias.values):
-        perc = v / len(df) * 100
+    total = sum(categorias_valores) if 'categorias' in df.columns else len(df)
+    for i, v in enumerate(categorias_valores):
+        perc = v / total * 100
         ax.text(v, i, f'  {v} ({perc:.1f}%)', va='center', fontweight='bold', fontsize=8)
     
     plt.tight_layout()
@@ -517,8 +560,31 @@ def generate_summary_report(df):
                 f.write(f"{i}. {prof}: {count:,} ({count/len(df)*100:.2f}%)\n")
             f.write("\n")
         
-        if 'Mercadoria' in df.columns:
-            f.write("--- TOP 5 PRODUTOS ---\n")
+        # Usar 'categorias' (normalizada) ao invés de 'Mercadoria'
+        if 'categorias' in df.columns:
+            f.write("--- TOP 5 CATEGORIAS DE PRODUTOS ---\n")
+            # Expandir listas de categorias
+            from collections import Counter
+            todas_categorias = []
+            for cats in df['categorias'].dropna():
+                if isinstance(cats, list):
+                    todas_categorias.extend(cats)
+                elif isinstance(cats, str):
+                    try:
+                        import ast
+                        cats_list = ast.literal_eval(cats) if cats.startswith('[') else [cats]
+                        todas_categorias.extend(cats_list)
+                    except:
+                        todas_categorias.append(cats)
+            
+            if todas_categorias:
+                contador = Counter(todas_categorias)
+                top_cat = contador.most_common(5)
+                for i, (cat, count) in enumerate(top_cat, 1):
+                    f.write(f"{i}. {cat}: {count:,} ({count/len(todas_categorias)*100:.2f}%)\n")
+            f.write("\n")
+        elif 'Mercadoria' in df.columns:
+            f.write("--- TOP 5 PRODUTOS (Mercadoria - pode ter duplicatas) ---\n")
             top_prod = df['Mercadoria'].value_counts().head(5)
             for i, (prod, count) in enumerate(top_prod.items(), 1):
                 f.write(f"{i}. {prod}: {count:,} ({count/len(df)*100:.2f}%)\n")
